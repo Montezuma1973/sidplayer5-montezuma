@@ -27,6 +27,7 @@ typedef void AudioDriver;
 @class SPGradientBox;
 @class SPMiniPlayerWindow;
 @class SPVisualizerView;
+@class SPSpectrumView;
 @class SPRemixKwedOrgController;
 
 extern NSString* SPTuneChangedNotification;
@@ -51,6 +52,7 @@ extern NSString* SPUrlRequestUserAgentString;
 	IBOutlet NSSlider* volumeSlider;
 	IBOutlet NSSlider* tempoSlider;
 	IBOutlet SPStatusDisplayView* statusDisplay;
+	IBOutlet SPSpectrumView* spectrumView;
 	
 	IBOutlet NSPanel* openUrlSheetPanel;
 	IBOutlet NSTextField* openUrlTextField;

@@ -14,10 +14,12 @@
 #import "SPRemixKwedOrgController.h"
 #import "SPGradientBox.h"
 #import "SPMiniPlayerWindow.h"
+#import "SPSpectrumView.h"
 
 #import <MediaPlayer/MediaPlayer.h>
 #import "AudioCoreDriverNew.h"
 #include <new>
+#include <string.h>
 
 NSString* SPTuneChangedNotification = @"SPTuneChangedNotification";
 NSString* SPPlayerInitializedNotification = @"SPPlayerInitializedNotification";
@@ -494,6 +496,24 @@ AudioCoreDriverNew* audioDriver = nil;
             state.Volume = registers[ 0x18 ] & 0x0f;
             
             [visualizerView update:&state];
+        }
+    }
+
+    if (spectrumView != nil && audioDriver != NULL)
+    {
+        static const int kSpectrumSampleCount = 1024;
+        short samples[kSpectrumSampleCount];
+        int sampleRate = audioDriver->getSampleRate();
+        if (audioDriver->getIsPlaying())
+        {
+            int copied = audioDriver->copySpectrumSamples(samples, kSpectrumSampleCount);
+            if (copied > 0)
+                [spectrumView updateWithSamples:samples count:copied sampleRate:sampleRate];
+        }
+        else
+        {
+            memset(samples, 0, sizeof(samples));
+            [spectrumView updateWithSamples:samples count:kSpectrumSampleCount sampleRate:sampleRate];
         }
     }
 }

@@ -10,6 +10,7 @@
 		1F00F6250D053D8000E91BB9 /* SPStilBrowserController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1F00F6240D053D8000E91BB9 /* SPStilBrowserController.m */; };
 		1F00F6280D053E2300E91BB9 /* StilBrowser.xib in Resources */ = {isa = PBXBuildFile; fileRef = 1F00F6260D053E2300E91BB9 /* StilBrowser.xib */; };
 		1F05AA7D0D511BEF004725C5 /* SPVisualizerView.m in Sources */ = {isa = PBXBuildFile; fileRef = 1F05AA7B0D511BEE004725C5 /* SPVisualizerView.m */; };
+		DA9E00132B00000100000001 /* SPSpectrumView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA9E00112B00000100000001 /* SPSpectrumView.m */; };
 		1F14E3F40D83F3F9001BAB20 /* SPBrowserState.m in Sources */ = {isa = PBXBuildFile; fileRef = 1F14E3F30D83F3F9001BAB20 /* SPBrowserState.m */; };
 		1F207ADA0D414B5400BBEF40 /* SPSimplePlaylist.m in Sources */ = {isa = PBXBuildFile; fileRef = 1F207AD90D414B5400BBEF40 /* SPSimplePlaylist.m */; };
 		1F207ADD0D414B6100BBEF40 /* SPSmartPlaylist.m in Sources */ = {isa = PBXBuildFile; fileRef = 1F207ADC0D414B6100BBEF40 /* SPSmartPlaylist.m */; };
@@ -317,6 +318,8 @@
 		1F00F6240D053D8000E91BB9 /* SPStilBrowserController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SPStilBrowserController.m; sourceTree = "<group>"; };
 		1F05AA7B0D511BEE004725C5 /* SPVisualizerView.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.objc; fileEncoding = 4; path = SPVisualizerView.m; sourceTree = "<group>"; };
 		1F05AA7C0D511BEE004725C5 /* SPVisualizerView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SPVisualizerView.h; sourceTree = "<group>"; };
+		DA9E00112B00000100000001 /* SPSpectrumView.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.objc; fileEncoding = 4; path = SPSpectrumView.m; sourceTree = "<group>"; };
+		DA9E00122B00000100000001 /* SPSpectrumView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SPSpectrumView.h; sourceTree = "<group>"; };
 		1F05AABD0D5121AF004725C5 /* DefaultVisualizer.qtz */ = {isa = PBXFileReference; lastKnownFileType = file.bplist; name = DefaultVisualizer.qtz; path = Resources/DefaultVisualizer.qtz; sourceTree = "<group>"; };
 		1F0FF5C20CF645B3000DAD6D /* notes.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = notes.txt; sourceTree = "<group>"; };
 		1F14E3F20D83F3F9001BAB20 /* SPBrowserState.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SPBrowserState.h; sourceTree = "<group>"; };
@@ -841,6 +844,8 @@
 				1FCC6AE00CF2264E005AFA9A /* SPStatusDisplayView.h */,
 				1F05AA7B0D511BEE004725C5 /* SPVisualizerView.m */,
 				1F05AA7C0D511BEE004725C5 /* SPVisualizerView.h */,
+				DA9E00112B00000100000001 /* SPSpectrumView.m */,
+				DA9E00122B00000100000001 /* SPSpectrumView.h */,
 				1FB8FF730D1875EA00945D64 /* SPPredicateEditor.m */,
 				1FB8FF720D1875EA00945D64 /* SPPredicateEditor.h */,
 				1F932CE20F8DC7B900BC8A4F /* SPSynchronizedScrollView.m */,
@@ -1829,6 +1834,7 @@
 				1F207ADD0D414B6100BBEF40 /* SPSmartPlaylist.m in Sources */,
 				1F2822460D469EA100AAB993 /* SPPlaylistItem.m in Sources */,
 				1F05AA7D0D511BEF004725C5 /* SPVisualizerView.m in Sources */,
+				DA9E00132B00000100000001 /* SPSpectrumView.m in Sources */,
 				DA5578142CDE20ED005C2A42 /* SPOscilloscopeWindowController.m in Sources */,
 				1F41C6050D5F58E20070C628 /* SPSidRegisterView.m in Sources */,
 				1F42425A0D70967D003FB09F /* SPColorProvider.m in Sources */,

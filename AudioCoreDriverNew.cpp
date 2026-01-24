@@ -29,6 +29,8 @@ AudioCoreDriverNew::AudioCoreDriverNew()
 // ----------------------------------------------------------------------------
 {
 	mIsInitialized = false;
+    mSpectrumBuffer = NULL;
+    mSpectrumWriteIndex.store(0, std::memory_order_relaxed);
 }
 
 
@@ -41,6 +43,7 @@ AudioCoreDriverNew::~AudioCoreDriverNew()
     AudioComponentInstanceDispose (gOutputUnit);
 
 	delete[] mSampleBuffer;
+    delete[] mSpectrumBuffer;
 	mIsInitialized = false;
 }
 
@@ -137,12 +140,38 @@ void AudioCoreDriverNew::initialize(PlayerLibSidplayWrapper* player, int sampleR
         // alloc sample buffer
         mSampleBuffer = new short[mNumSamplesInAudioBuffer];
         memset(mSampleBuffer, 0, numberOfBytesInAudioBuffer);
+
+        if (mSpectrumBuffer == NULL) {
+            mSpectrumBuffer = new short[kSpectrumBufferSize];
+            memset(mSpectrumBuffer, 0, sizeof(short) * kSpectrumBufferSize);
+            mSpectrumWriteIndex.store(0, std::memory_order_relaxed);
+        }
 	}
 
 	//printf("init: OK\n");		
 	
 	mVolume = 1.0f;
-	mIsInitialized = true;
+    mIsInitialized = true;
+}
+
+// ----------------------------------------------------------------------------
+int AudioCoreDriverNew::copySpectrumSamples(short* outBuffer, int maxSamples) const
+// ----------------------------------------------------------------------------
+{
+    if (outBuffer == NULL || maxSamples <= 0 || mSpectrumBuffer == NULL) {
+        return 0;
+    }
+
+    if (maxSamples > kSpectrumBufferSize) {
+        maxSamples = kSpectrumBufferSize;
+    }
+
+    unsigned int writeIndex = mSpectrumWriteIndex.load(std::memory_order_relaxed);
+    unsigned int start = writeIndex - (unsigned int)maxSamples;
+    for (int i = 0; i < maxSamples; i++) {
+        outBuffer[i] = mSpectrumBuffer[(start + (unsigned int)i) & (kSpectrumBufferSize - 1)];
+    }
+    return maxSamples;
 }
 
 
@@ -258,6 +287,7 @@ OSStatus    AudioCoreDriverNew::MyRenderer(void     *inRefCon,
     {
         for (int x=0;x<numberOfSamplesOutAudioBuffer;x++) {
             sample = driverInstance->mVolume * (*audioIn++);
+            driverInstance->pushSpectrumSample((short)sample);
             *audioOut++ = (short)sample; // left
             *audioOut++ = (short)sample; // right
         }
@@ -272,6 +302,7 @@ OSStatus    AudioCoreDriverNew::MyRenderer(void     *inRefCon,
         while (numberOfSamplesToCopy >0 ) {
             for (int x=0;x<tempSampleCopy;x++) {
                 sample = driverInstance->mVolume * (*audioIn++);
+                driverInstance->pushSpectrumSample((short)sample);
                 *audioOut++ = (short)sample; // left
                 *audioOut++ = (short)sample; // right
             }
@@ -297,6 +328,7 @@ OSStatus    AudioCoreDriverNew::MyRenderer(void     *inRefCon,
     {
         for (int x=0;x<numberOfSamplesOutAudioBuffer;x++) {
             sample = driverInstance->mVolume * (*audioIn++);
+            driverInstance->pushSpectrumSample((short)sample);
             *audioOut++ = (short)sample; // left
             *audioOut++ = (short)sample; // right
         }

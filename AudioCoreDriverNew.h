@@ -40,6 +40,7 @@
 #include <AudioToolbox/AudioToolbox.h>
 #include <AudioUnit/AudioUnit.h>
 #include <CoreServices/CoreServices.h>
+#include <atomic>
 
 
 #define DEFAULT_SAMPLERATE 48000
@@ -83,8 +84,14 @@ public:
 	inline bool getIsInitialized()		{ return mIsInitialized; }
     
     inline int getNumSamplesInBuffer()   { return         mNumSamplesInAudioBuffer; }
+    int copySpectrumSamples(short* outBuffer, int maxSamples) const;
 private:
     inline float getScaleFactor()          { return mScaleFactor; }
+    inline void pushSpectrumSample(short sample)
+    {
+        unsigned int index = mSpectrumWriteIndex.fetch_add(1, std::memory_order_relaxed);
+        mSpectrumBuffer[index & (kSpectrumBufferSize - 1)] = sample;
+    }
     
 	void fillBuffer();
 	bool							mIsInitialized;
@@ -127,6 +134,10 @@ private:
     unsigned int        mNumSamplesInAudioBuffer;
     unsigned int        numberOfBytesInAudioBuffer;
     unsigned int        numberOfSamplesInAudioBuffer;
+
+    static const int    kSpectrumBufferSize = 4096;
+    short*              mSpectrumBuffer;
+    std::atomic<unsigned int> mSpectrumWriteIndex;
     
     
     // Core Audio functions
