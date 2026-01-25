@@ -1196,6 +1196,10 @@
                                             <autoresizingMask key="autoresizingMask"/>
                                         </tableHeaderView>
                                     </scrollView>
+                                    <customView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="VoN-1a-not" customClass="SPVoiceNotesView">
+                                        <rect key="frame" x="0.0" y="0.0" width="768" height="0.0"/>
+                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMaxY="YES"/>
+                                    </customView>
                                     <box autoresizesSubviews="NO" fixedFrame="YES" boxType="custom" borderType="line" borderWidth="0.0" titlePosition="noTitle" translatesAutoresizingMaskIntoConstraints="NO" id="519">
                                         <rect key="frame" x="0.0" y="605" width="768" height="28"/>
                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
@@ -1498,6 +1502,7 @@
                 <outlet property="textE4" destination="906-Fc-r8i" id="0Op-w0-hPn"/>
                 <outlet property="visualizerMenu" destination="1927" id="1930"/>
                 <outlet property="volumeSlider" destination="702" id="766"/>
+                <outlet property="voiceNotesView" destination="VoN-1a-not" id="VNv-Q2-1aB"/>
             </connections>
             <point key="canvasLocation" x="373.5" y="-2469.5"/>
         </window>

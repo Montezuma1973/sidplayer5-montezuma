@@ -46,6 +46,7 @@
 - (void) setVoice:(int)voice toVolume:(float)volume;
 - (void) toggleMute:(int)voice;
 - (void) toggleSolo:(int)voice;
+- (void) updateVoiceNotes;
 
 
 @end

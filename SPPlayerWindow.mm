@@ -15,6 +15,7 @@
 #import "SPGradientBox.h"
 #import "SPMiniPlayerWindow.h"
 #import "SPSpectrumView.h"
+#import "SPSidNoteUtils.h"
 
 #import <MediaPlayer/MediaPlayer.h>
 #import "AudioCoreDriverNew.h"
@@ -26,6 +27,148 @@ NSString* SPPlayerInitializedNotification = @"SPPlayerInitializedNotification";
 
 NSString* SPUrlRequestUserAgentString = nil;
 AudioCoreDriverNew* audioDriver = nil;
+
+@interface SPVoiceNotesView : NSView
+- (void) updateWithRegisters:(const uint8_t*)registers;
+- (void) clearNotes;
+@end
+
+@implementation SPVoiceNotesView
+{
+	NSMutableArray<NSString*>* noteHistory;
+	NSString* currentTriplet;
+	NSDictionary* textAttributes;
+}
+
+- (instancetype)initWithFrame:(NSRect)frame
+{
+	self = [super initWithFrame:frame];
+	if (self)
+	{
+		noteHistory = [NSMutableArray arrayWithCapacity:10];
+		currentTriplet = nil;
+		NSFont* font = [NSFont fontWithName:@"Menlo" size:11.0f];
+		if (!font)
+			font = [NSFont systemFontOfSize:11.0f];
+		textAttributes = @{NSFontAttributeName: font,
+						   NSForegroundColorAttributeName: [NSColor labelColor]};
+	}
+	return self;
+}
+
+- (BOOL)isFlipped
+{
+	return YES;
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+	[super drawRect:dirtyRect];
+
+	[[NSColor controlBackgroundColor] setFill];
+	NSRectFill(dirtyRect);
+
+	CGFloat x = 8.0f;
+	CGFloat y = 6.0f;
+	CGFloat lineHeight = 13.0f;
+	const CGFloat nowWidth = 50.0f;
+	const CGFloat voiceWidth = 80.0f;
+	const CGFloat colGap = 12.0f;
+	CGFloat colNowX = x;
+	CGFloat colV1X = colNowX + nowWidth + colGap;
+	CGFloat colV2X = colV1X + voiceWidth + colGap;
+	CGFloat colV3X = colV2X + voiceWidth + colGap;
+
+	NSString* headerV1 = @"Voice 1";
+	NSString* headerV2 = @"Voice 2";
+	NSString* headerV3 = @"Voice 3";
+	[headerV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
+	[headerV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
+	[headerV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+	y += lineHeight;
+
+	NSString* nowV1 = @"--";
+	NSString* nowV2 = @"--";
+	NSString* nowV3 = @"--";
+	if (currentTriplet)
+	{
+		NSArray<NSString*>* parts = [currentTriplet componentsSeparatedByString:@"  "];
+		for (NSString* part in parts)
+		{
+			if ([part hasPrefix:@"V1: "]) nowV1 = [part substringFromIndex:4];
+			else if ([part hasPrefix:@"V2: "]) nowV2 = [part substringFromIndex:4];
+			else if ([part hasPrefix:@"V3: "]) nowV3 = [part substringFromIndex:4];
+		}
+	}
+	[@"" drawAtPoint:CGPointMake(colNowX, y) withAttributes:textAttributes];
+	[nowV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
+	[nowV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
+	[nowV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+	y += lineHeight;
+
+	for (NSUInteger i = 0; i < noteHistory.count; i++)
+	{
+		NSString* triplet = noteHistory[i];
+		NSString* v1 = @"--";
+		NSString* v2 = @"--";
+		NSString* v3 = @"--";
+		NSArray<NSString*>* parts = [triplet componentsSeparatedByString:@"  "];
+		for (NSString* part in parts)
+		{
+			if ([part hasPrefix:@"V1: "]) v1 = [part substringFromIndex:4];
+			else if ([part hasPrefix:@"V2: "]) v2 = [part substringFromIndex:4];
+			else if ([part hasPrefix:@"V3: "]) v3 = [part substringFromIndex:4];
+		}
+
+		NSString* rowLabel = [NSString stringWithFormat:@"%2lu", (unsigned long)(i + 1)];
+		[rowLabel drawAtPoint:CGPointMake(colNowX, y) withAttributes:textAttributes];
+		[v1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
+		[v2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
+		[v3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+		y += lineHeight;
+	}
+}
+
+- (void) updateWithRegisters:(const uint8_t*)registers
+{
+	if (!registers)
+		return;
+
+	const char* notes[3];
+	for (int i = 0; i < 3; i++)
+	{
+		int registerOffset = i * 7;
+		uint16_t frequency = registers[registerOffset] + (registers[registerOffset + 1] << 8);
+		BOOL gateOn = (registers[registerOffset + 4] & 0x01) ? YES : NO;
+		notes[i] = gateOn ? SPSidNoteStringForFrequency(frequency) : "--";
+		if (!notes[i] || notes[i][0] == '\0')
+			notes[i] = "--";
+	}
+
+	NSString* triplet = [NSString stringWithFormat:@"V1: %s  V2: %s  V3: %s", notes[0], notes[1], notes[2]];
+
+	if (currentTriplet && [currentTriplet isEqualToString:triplet])
+		return;
+
+	if (currentTriplet)
+	{
+		[noteHistory insertObject:currentTriplet atIndex:0];
+		if (noteHistory.count > 10)
+			[noteHistory removeLastObject];
+	}
+
+	currentTriplet = triplet;
+	[self setNeedsDisplay:YES];
+}
+
+- (void) clearNotes
+{
+	[noteHistory removeAllObjects];
+	currentTriplet = nil;
+	[self setNeedsDisplay:YES];
+}
+
+@end
 
 @implementation SPPlayerWindow
 
@@ -136,6 +279,64 @@ AudioCoreDriverNew* audioDriver = nil;
             [splitView setPosition:position ofDividerAtIndex:i];
         }
     }
+
+    [rightView setPostsFrameChangedNotifications:YES];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(rightViewFrameDidChange:) name:NSViewFrameDidChangeNotification object:rightView];
+    [self layoutVoiceNotesView];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self layoutVoiceNotesView];
+    });
+}
+
+// ----------------------------------------------------------------------------
+- (void) rightViewFrameDidChange:(NSNotification*)notification
+// ----------------------------------------------------------------------------
+{
+    [self layoutVoiceNotesView];
+}
+
+// ----------------------------------------------------------------------------
+- (void) layoutVoiceNotesView
+// ----------------------------------------------------------------------------
+{
+    if (!voiceNotesView || !browserScrollView || !rightView || !boxView)
+        return;
+
+    NSView* rightViewAsView = (NSView*)rightView;
+    const CGFloat desiredNotesHeight = 150.0f;
+    NSRect rightBounds = rightViewAsView.bounds;
+    CGFloat topBoxHeight = boxView.frame.size.height;
+    CGFloat availableHeight = rightBounds.size.height - topBoxHeight;
+    if (availableHeight <= 0.0f)
+        return;
+
+    CGFloat notesHeight = MIN(desiredNotesHeight, MAX(0.0f, availableHeight - 80.0f));
+    NSRect notesFrame = NSMakeRect(0.0f, 0.0f, rightBounds.size.width, notesHeight);
+    voiceNotesView.frame = notesFrame;
+
+    NSRect browserFrame = NSMakeRect(0.0f, notesHeight, rightBounds.size.width, availableHeight - notesHeight);
+    browserScrollView.frame = browserFrame;
+    browserScrollView.hidden = NO;
+    browserScrollView.alphaValue = 1.0f;
+    voiceNotesView.hidden = NO;
+
+    if (browserScrollView.superview == rightViewAsView && voiceNotesView.superview == rightViewAsView)
+    {
+        [rightViewAsView addSubview:browserScrollView positioned:NSWindowAbove relativeTo:voiceNotesView];
+        [rightViewAsView addSubview:voiceNotesView positioned:NSWindowBelow relativeTo:browserScrollView];
+    }
+
+    NSView* documentView = browserScrollView.documentView;
+    if (documentView)
+    {
+        documentView.frame = browserScrollView.contentView.bounds;
+        [documentView setNeedsDisplay:YES];
+    }
+    [browserScrollView setNeedsDisplay:YES];
+    NSLog(@"VoiceNotes layout - right: %@ browser: %@ notes: %@",
+          NSStringFromRect(rightBounds),
+          NSStringFromRect(browserScrollView.frame),
+          NSStringFromRect(voiceNotesView.frame));
 }
 
 // ----------------------------------------------------------------------------
@@ -198,6 +399,8 @@ AudioCoreDriverNew* audioDriver = nil;
                              withSettings:&dummySettings];
     if (success)
     {
+        if (voiceNotesView != nil)
+            [voiceNotesView clearNotes];
         if (fadeOutInProgress)
             [self stopFadeOut];
         
@@ -267,6 +470,8 @@ AudioCoreDriverNew* audioDriver = nil;
                                  withSettings:&dummySettings];
     if (success)
     {
+        if (voiceNotesView != nil)
+            [voiceNotesView clearNotes];
         currentTunePath = nil;
         [self setFadeVolume:1.0f];
         [self setPlayPauseButtonToPause:YES];
@@ -469,6 +674,9 @@ AudioCoreDriverNew* audioDriver = nil;
              }
              */
         //}
+        if (voiceNotesView != nil)
+            [voiceNotesView updateWithRegisters:registers];
+
         if (visualizerView != nil && visualizerView.superview != nil)
         {
             VisualizerState state;
@@ -908,6 +1116,8 @@ AudioCoreDriverNew* audioDriver = nil;
     
     audioDriver->stopPlayback();
     [self setPlayPauseButtonToPause:NO];
+    if (voiceNotesView != nil)
+        [voiceNotesView clearNotes];
     
     [player initCurrentSubtune];
     

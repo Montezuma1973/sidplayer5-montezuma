@@ -2,6 +2,7 @@
 #import "SPOscilloscopeView.h"
 #import "SPColorProvider.h"
 #import "SPPlayerWindow.h"
+#import "SPMixerView.h"
 
 
 
@@ -77,6 +78,10 @@ static const float desiredContainerWidth = 415.0f;
 	if (sidRegisterInfoView && ![sidRegisterInfoView isCollapsed])
 		[sidRegisterView setNeedsDisplay:YES];
 		//CALLIMP(sidRegisterDisplayImp, sidRegisterView, display);
+
+	SPInfoView* mixerInfoView = infoViews[MIXER_CONTAINER_INDEX];
+	if (mixerInfoView && ![mixerInfoView isCollapsed] && [mixerInfoView isKindOfClass:[SPMixerView class]])
+		[(SPMixerView*)mixerInfoView updateVoiceNotes];
 }
 
 

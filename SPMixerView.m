@@ -3,6 +3,7 @@
 #import "SPPlayerWindow.h"
 #import "PlayerLibSidplayWrapper.h"
 #import "SPPreferencesController.h"
+#import "SPSidNoteUtils.h"
 
 
 @implementation SPMixerView
@@ -274,6 +275,37 @@
 	}
 }
 
+// ----------------------------------------------------------------------------
+- (void) updateVoiceNotes
+// ----------------------------------------------------------------------------
+{
+	if (!player)
+		player = (PlayerLibSidplayWrapper*) [[container ownerWindow] player];
 
+	if (!player)
+		return;
+
+	struct SidRegisterFrame* registerFrame = [player getCurrentSidRegisters];
+	if (!registerFrame)
+		return;
+
+	const uint8_t* regs = registerFrame->mRegisters;
+	NSTextField* labels[3] = { voice1Label, voice2Label, voice3Label };
+
+	for (int i = 0; i < 3; i++)
+	{
+		int registerOffset = i * 7;
+		uint16_t frequency = regs[registerOffset] + (regs[registerOffset + 1] << 8);
+		BOOL gateOn = (regs[registerOffset + 4] & 0x01) ? YES : NO;
+		const char* noteString = gateOn ? SPSidNoteStringForFrequency(frequency) : "--";
+
+		if (!noteString || noteString[0] == '\0')
+			noteString = "--";
+
+		NSString* labelText = [NSString stringWithFormat:@"Voice %d: %s", i + 1, noteString];
+		if (![labels[i].stringValue isEqualToString:labelText])
+			labels[i].stringValue = labelText;
+	}
+}
 
 @end
