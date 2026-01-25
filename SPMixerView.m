@@ -150,22 +150,14 @@
 - (void) toggleMute:(int)voice
 // ----------------------------------------------------------------------------
 {
-	if (voiceMuted[voice])
-	{
-		voiceMuted[voice] = false;
-		[self setVoice:voice toVolume:preMuteVolumes[voice]];
-		//removed, volume per voice is not supported
-        //[voiceSliders[voice] setEnabled:YES];
-		voiceSliders[voice].floatValue = preMuteVolumes[voice];
-	} 
-	else
-	{
-		voiceMuted[voice] = true;
-		preMuteVolumes[voice] = currentVolumes[voice];
-		[self setVoice:voice toVolume:0.0f];
-		[voiceSliders[voice] setEnabled:NO];
-		voiceSliders[voice].floatValue = 0.0f;
-	}
+	if (!player)
+		player = (PlayerLibSidplayWrapper*) [[container ownerWindow] player];
+
+	if (!player)
+		return;
+
+	[player toggleVoiceMuted:voice];
+	[self syncVoiceControlsFromPlayer];
 }
 
 
@@ -285,6 +277,8 @@
 	if (!player)
 		return;
 
+	[self syncVoiceControlsFromPlayer];
+
 	struct SidRegisterFrame* registerFrame = [player getCurrentSidRegisters];
 	if (!registerFrame)
 		return;
@@ -305,6 +299,30 @@
 		NSString* labelText = [NSString stringWithFormat:@"Voice %d: %s", i + 1, noteString];
 		if (![labels[i].stringValue isEqualToString:labelText])
 			labels[i].stringValue = labelText;
+	}
+}
+
+- (void) syncVoiceControlsFromPlayer
+{
+	if (!player)
+		player = (PlayerLibSidplayWrapper*) [[container ownerWindow] player];
+
+	if (!player)
+		return;
+
+	NSButton* muteButtons[3] = { voice1Mute, voice2Mute, voice3Mute };
+	for (int i = 0; i < 3; i++)
+	{
+		BOOL muted = [player isVoiceMuted:i];
+		float volume = [player voiceVolumeForVoice:i];
+		float preMute = [player voicePreMuteVolumeForVoice:i];
+
+		voiceMuted[i] = muted;
+		preMuteVolumes[i] = preMute;
+		currentVolumes[i] = muted ? preMute : volume;
+		[voiceSliders[i] setEnabled:!muted];
+		voiceSliders[i].floatValue = muted ? 0.0f : volume;
+		muteButtons[i].state = muted ? NSOnState : NSOffState;
 	}
 }
 

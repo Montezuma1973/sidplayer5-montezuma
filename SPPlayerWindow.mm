@@ -16,6 +16,7 @@
 #import "SPMiniPlayerWindow.h"
 #import "SPSpectrumView.h"
 #import "SPSidNoteUtils.h"
+#import "SPMixerView.h"
 
 #import <MediaPlayer/MediaPlayer.h>
 #import "AudioCoreDriverNew.h"
@@ -28,16 +29,38 @@ NSString* SPPlayerInitializedNotification = @"SPPlayerInitializedNotification";
 NSString* SPUrlRequestUserAgentString = nil;
 AudioCoreDriverNew* audioDriver = nil;
 
+@interface SPPlayerWindow (VoiceMute)
+- (void) toggleVoiceMute:(int)voice;
+- (BOOL) isVoiceMuted:(int)voice;
+@end
+
 @interface SPVoiceNotesView : NSView
 - (void) updateWithRegisters:(const uint8_t*)registers;
 - (void) clearNotes;
+- (void) setOwnerWindow:(SPPlayerWindow*)window;
 @end
+
+static NSString* SPInstrumentStringForControl(uint8_t control)
+{
+	uint8_t waveform = control & 0xF0;
+	if (waveform == 0)
+		return @"--";
+
+	NSMutableArray<NSString*>* parts = [NSMutableArray arrayWithCapacity:4];
+	if (waveform & 0x10) [parts addObject:@"Tri"];
+	if (waveform & 0x20) [parts addObject:@"Saw"];
+	if (waveform & 0x40) [parts addObject:@"Pulse"];
+	if (waveform & 0x80) [parts addObject:@"Noise"];
+	return [parts componentsJoinedByString:@"+"];
+}
 
 @implementation SPVoiceNotesView
 {
 	NSMutableArray<NSString*>* noteHistory;
 	NSString* currentTriplet;
 	NSDictionary* textAttributes;
+	__weak SPPlayerWindow* ownerWindow;
+	NSRect muteHitRects[3];
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
@@ -61,6 +84,11 @@ AudioCoreDriverNew* audioDriver = nil;
 	return YES;
 }
 
+- (void) setOwnerWindow:(SPPlayerWindow*)window
+{
+	ownerWindow = window;
+}
+
 - (void)drawRect:(NSRect)dirtyRect
 {
 	[super drawRect:dirtyRect];
@@ -72,7 +100,7 @@ AudioCoreDriverNew* audioDriver = nil;
 	CGFloat y = 6.0f;
 	CGFloat lineHeight = 13.0f;
 	const CGFloat nowWidth = 50.0f;
-	const CGFloat voiceWidth = 80.0f;
+	const CGFloat voiceWidth = 120.0f;
 	const CGFloat colGap = 12.0f;
 	CGFloat colNowX = x;
 	CGFloat colV1X = colNowX + nowWidth + colGap;
@@ -82,9 +110,25 @@ AudioCoreDriverNew* audioDriver = nil;
 	NSString* headerV1 = @"Voice 1";
 	NSString* headerV2 = @"Voice 2";
 	NSString* headerV3 = @"Voice 3";
+	NSString* muteLabel = @"Mute";
+	NSFont* font = textAttributes[NSFontAttributeName];
 	[headerV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
 	[headerV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
 	[headerV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+	for (int i = 0; i < 3; i++)
+	{
+		BOOL muted = ownerWindow ? [ownerWindow isVoiceMuted:i] : NO;
+		NSColor* muteColor = muted ? [NSColor systemRedColor] : [NSColor secondaryLabelColor];
+		NSDictionary* muteAttributes = @{NSFontAttributeName: font,
+										 NSForegroundColorAttributeName: muteColor};
+		NSSize muteSize = [muteLabel sizeWithAttributes:muteAttributes];
+		NSString* header = (i == 0) ? headerV1 : (i == 1) ? headerV2 : headerV3;
+		NSSize headerSize = [header sizeWithAttributes:textAttributes];
+		CGFloat colX = (i == 0) ? colV1X : (i == 1) ? colV2X : colV3X;
+		CGFloat muteX = colX + headerSize.width + 8.0f;
+		[muteLabel drawAtPoint:CGPointMake(muteX, y) withAttributes:muteAttributes];
+		muteHitRects[i] = NSMakeRect(muteX - 2.0f, y - 1.0f, muteSize.width + 4.0f, lineHeight);
+	}
 	y += lineHeight;
 
 	NSString* nowV1 = @"--";
@@ -129,23 +173,45 @@ AudioCoreDriverNew* audioDriver = nil;
 	}
 }
 
+- (void) mouseDown:(NSEvent*)event
+{
+	NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+	for (int i = 0; i < 3; i++)
+	{
+		if (NSPointInRect(point, muteHitRects[i]))
+		{
+			if (ownerWindow)
+				[ownerWindow toggleVoiceMute:i];
+			return;
+		}
+	}
+	[super mouseDown:event];
+}
+
 - (void) updateWithRegisters:(const uint8_t*)registers
 {
 	if (!registers)
 		return;
 
-	const char* notes[3];
+	NSString* notes[3];
+	NSString* instruments[3];
 	for (int i = 0; i < 3; i++)
 	{
 		int registerOffset = i * 7;
 		uint16_t frequency = registers[registerOffset] + (registers[registerOffset + 1] << 8);
-		BOOL gateOn = (registers[registerOffset + 4] & 0x01) ? YES : NO;
-		notes[i] = gateOn ? SPSidNoteStringForFrequency(frequency) : "--";
-		if (!notes[i] || notes[i][0] == '\0')
-			notes[i] = "--";
+		uint8_t control = registers[registerOffset + 4];
+		BOOL gateOn = (control & 0x01) ? YES : NO;
+		const char* noteString = gateOn ? SPSidNoteStringForFrequency(frequency) : "--";
+		if (!noteString || noteString[0] == '\0')
+			noteString = "--";
+		notes[i] = [NSString stringWithUTF8String:noteString];
+		instruments[i] = gateOn ? SPInstrumentStringForControl(control) : @"--";
 	}
 
-	NSString* triplet = [NSString stringWithFormat:@"V1: %s  V2: %s  V3: %s", notes[0], notes[1], notes[2]];
+	NSString* triplet = [NSString stringWithFormat:@"V1: %@ %@  V2: %@ %@  V3: %@ %@",
+						 notes[0], instruments[0],
+						 notes[1], instruments[1],
+						 notes[2], instruments[2]];
 
 	if (currentTriplet && [currentTriplet isEqualToString:triplet])
 		return;
@@ -178,6 +244,8 @@ AudioCoreDriverNew* audioDriver = nil;
     [[SPPreferencesController sharedInstance] load];
     [remixKwedOrgController acquireDatabase];
     [remixKwedOrgController setOwnerWindow:self];
+	if (voiceNotesView != nil)
+		[voiceNotesView setOwnerWindow:self];
     
     if (gPreferences.mInfoWindowVisible)
     {
@@ -840,6 +908,33 @@ AudioCoreDriverNew* audioDriver = nil;
 - (PlayerLibSidplayWrapper*) player;
 {
     return player;
+}
+
+// ----------------------------------------------------------------------------
+- (BOOL) isVoiceMuted:(int)voice
+{
+	if (player == NULL)
+		return NO;
+	return [player isVoiceMuted:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (void) toggleVoiceMute:(int)voice
+{
+	if (player == NULL)
+		return;
+
+	[player toggleVoiceMuted:voice];
+
+	if (infoWindowController != nil)
+	{
+		SPMixerView* mixerView = [[infoWindowController containerView] mixerView];
+		if (mixerView != nil)
+			[mixerView syncVoiceControlsFromPlayer];
+	}
+
+	if (voiceNotesView != nil)
+		[voiceNotesView setNeedsDisplay:YES];
 }
 
 // ----------------------------------------------------------------------------

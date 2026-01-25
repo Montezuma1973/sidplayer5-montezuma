@@ -5,6 +5,7 @@
 @class SPInfoView;
 @class SPPlayerWindow;
 @class SPColorProvider;
+@class SPMixerView;
 
 extern NSString* SPInfoContainerBackgroundChangedNotification;
 
@@ -45,6 +46,7 @@ enum
 - (void) positionSubviewsWithAnimation:(BOOL)animate;
 - (void) startResizeAnimation;
 - (void) adjustConstraintsOfWindow:(NSWindow*)window withMaxWidth:(float)maxWidth andMaxHeight:(float)maxHeight;
+- (SPMixerView*) mixerView;
 
 @property (NS_NONATOMIC_IOSONLY, strong) SPPlayerWindow *ownerWindow;
 

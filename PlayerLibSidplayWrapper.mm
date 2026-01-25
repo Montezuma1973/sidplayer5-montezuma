@@ -43,9 +43,9 @@
 
 unsigned char sid_registers[ 0x19 ];
 
-double mixer_value1 = 1.0;
-double mixer_value2 = 1.0;
-double mixer_value3 = 1.0;
+static double mixer_value[3] = { 1.0, 1.0, 1.0 };
+static double mixer_preMute[3] = { 1.0, 1.0, 1.0 };
+static BOOL mixer_muted[3] = { NO, NO, NO };
 
 typedef std::vector<SidRegisterFrame> SidRegisterLog;
 
@@ -583,24 +583,69 @@ static inline float approximate_dac(int x, float kinkiness)
         return;
     int numberSids = mBuilder_reSID->usedDevices();
     
-    switch (voice)
-    {
-        case 0:
-            mixer_value1 = volume;
-            break;
-        case 1:
-            mixer_value2 = volume;
-            break;
-        case 2:
-            mixer_value3 = volume;
-            break;
-    }
+    if (voice < 0 || voice > 2)
+        return;
+
+    mixer_value[voice] = volume;
+    if (!mixer_muted[voice])
+        mixer_preMute[voice] = volume;
     if (volume == 0)
         for (int i=0;i<numberSids;i++)
             mSidEmuEngine->mute(i, voice, true);
     else
         for (int i=0;i<numberSids;i++)
             mSidEmuEngine->mute(i, voice, false);
+}
+
+- (float) voiceVolumeForVoice:(int) voice
+{
+    if (voice < 0 || voice > 2)
+        return 0.0f;
+    return (float)mixer_value[voice];
+}
+
+- (float) voicePreMuteVolumeForVoice:(int) voice
+{
+    if (voice < 0 || voice > 2)
+        return 0.0f;
+    return (float)mixer_preMute[voice];
+}
+
+- (BOOL) isVoiceMuted:(int) voice
+{
+    if (voice < 0 || voice > 2)
+        return NO;
+    return mixer_muted[voice];
+}
+
+- (void) setVoiceMuted:(BOOL)muted forVoice:(int) voice
+{
+    if (mSidEmuEngine == NULL)
+        return;
+    if (mBuilder_reSID == NULL)
+        return;
+    if (voice < 0 || voice > 2)
+        return;
+
+    if (muted == mixer_muted[voice])
+        return;
+
+    mixer_muted[voice] = muted;
+    if (muted)
+    {
+        mixer_preMute[voice] = mixer_value[voice];
+        [self setVoiceVolume:0.0f forVoice:voice];
+    }
+    else
+    {
+        float restoreVolume = (float)mixer_preMute[voice];
+        [self setVoiceVolume:restoreVolume forVoice:voice];
+    }
+}
+
+- (void) toggleVoiceMuted:(int) voice
+{
+    [self setVoiceMuted:![self isVoiceMuted:voice] forVoice:voice];
 }
 /* FIXME: FILTER SETTINGS?!
  // ----------------------------------------------------------------------------

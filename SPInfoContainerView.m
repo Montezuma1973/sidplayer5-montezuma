@@ -84,6 +84,16 @@ static const float desiredContainerWidth = 415.0f;
 		[(SPMixerView*)mixerInfoView updateVoiceNotes];
 }
 
+// ----------------------------------------------------------------------------
+- (SPMixerView*) mixerView
+// ----------------------------------------------------------------------------
+{
+	SPInfoView* mixerInfoView = infoViews[MIXER_CONTAINER_INDEX];
+	if (mixerInfoView && [mixerInfoView isKindOfClass:[SPMixerView class]])
+		return (SPMixerView*)mixerInfoView;
+	return nil;
+}
+
 
 // ----------------------------------------------------------------------------
 - (SPPlayerWindow*) ownerWindow

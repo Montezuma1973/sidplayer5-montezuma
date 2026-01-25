@@ -75,6 +75,11 @@ struct SidRegisterFrame
 - (int) getTempo;       //    { return mCurrentTempo; }
 - (void) setTempo:(int)tempo;
 - (void) setVoiceVolume:(float)volume forVoice:(int) voice;
+- (float) voiceVolumeForVoice:(int) voice;
+- (float) voicePreMuteVolumeForVoice:(int) voice;
+- (BOOL) isVoiceMuted:(int) voice;
+- (void) setVoiceMuted:(BOOL)muted forVoice:(int) voice;
+- (void) toggleVoiceMuted:(int) voice;
 
 //    sid_filter_t*            getFilterSettings()                                    { return &mFilterSettings; }
 //    void                    setFilterSettings(sid_filter_t* filterSettings);
@@ -108,4 +113,3 @@ struct SidRegisterFrame
 @end
 
 NS_ASSUME_NONNULL_END
-
