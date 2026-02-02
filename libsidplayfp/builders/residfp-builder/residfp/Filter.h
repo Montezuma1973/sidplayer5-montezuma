@@ -138,6 +138,11 @@ public:
 
     virtual ~Filter() = default;
 
+    inline int normalizedVoiceOutput(Voice& v) const
+    {
+        return getNormalizedVoice(v);
+    }
+
     /**
      * SID clocking - 1 cycle
      *

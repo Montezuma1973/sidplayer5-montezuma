@@ -25,6 +25,7 @@
 #include "SID.h"
 
 #include <limits>
+#include <cstring>
 
 #include "sidcxx11.h"
 
@@ -157,6 +158,32 @@ SID::~SID()
 {
     delete filter6581;
     delete filter8580;
+}
+
+void SID::setScopeBuffers(short* voice1, short* voice2, short* voice3, unsigned int size)
+{
+    scopeBuffers[0] = voice1;
+    scopeBuffers[1] = voice2;
+    scopeBuffers[2] = voice3;
+    scopeBufferSize = size;
+    scopeWriteIndex = 0;
+
+    if (scopeBufferSize == 0)
+        return;
+
+    if (scopeBuffers[0] != nullptr)
+        std::memset(scopeBuffers[0], 0, sizeof(short) * scopeBufferSize);
+    if (scopeBuffers[1] != nullptr)
+        std::memset(scopeBuffers[1], 0, sizeof(short) * scopeBufferSize);
+    if (scopeBuffers[2] != nullptr)
+        std::memset(scopeBuffers[2], 0, sizeof(short) * scopeBufferSize);
+}
+
+const short* SID::getScopeBuffer(unsigned int voiceIndex) const
+{
+    if (voiceIndex > 2)
+        return nullptr;
+    return scopeBuffers[voiceIndex];
 }
 
 void SID::setFilter6581Curve(double filterCurve)

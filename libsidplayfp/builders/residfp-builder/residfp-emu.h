@@ -42,6 +42,8 @@ class ReSIDfp final : public sidemu
 {
 private:
     reSIDfp::SID &m_sid;
+    short* m_scopeBuffers[3] = { nullptr, nullptr, nullptr };
+    unsigned int m_scopeBufferSize = 0;
 
 public:
     static const char* getCredits();
@@ -72,6 +74,10 @@ public:
     void filter6581Range(double adjustment);
     void filter8580Curve(double filterCurve);
     void combinedWaveforms(SidConfig::sid_cw_t cws);
+
+    const short* scopeBuffer(unsigned int voice) const;
+    unsigned int scopeBufferSize() const { return m_scopeBufferSize; }
+    unsigned int scopeBufferWriteIndex() const;
 };
 
 }

@@ -60,6 +60,9 @@
     CGContextSetRGBFillColor(context, 0.0f, 0.0f, 0.0f, 0.8f);
     CGContextFillRect(context, contextRect);
     short* sampleBuffer = NULL;
+    const short* voiceBuffers[3] = { NULL, NULL, NULL };
+    unsigned int scopeBufferSize = 0;
+    unsigned int scopeWriteIndex = 0;
     BOOL isPlaying = NO;
     /* we use protocols here, simply because I don't want
      * to change the whole LibPlayerClass here
@@ -80,6 +83,16 @@
         numSamples = [(id)playerW currentNumberOfSamples];
      
     }
+    if ([(id)playerW respondsToSelector:@selector(voiceScopeBufferForVoice:)])
+    {
+        voiceBuffers[0] = [(id)playerW voiceScopeBufferForVoice:0];
+        voiceBuffers[1] = [(id)playerW voiceScopeBufferForVoice:1];
+        voiceBuffers[2] = [(id)playerW voiceScopeBufferForVoice:2];
+    }
+    if ([(id)playerW respondsToSelector:@selector(voiceScopeBufferSize)])
+        scopeBufferSize = [(id)playerW voiceScopeBufferSize];
+    if ([(id)playerW respondsToSelector:@selector(voiceScopeWriteIndex)])
+        scopeWriteIndex = [(id)playerW voiceScopeWriteIndex];
     float zeroLineHeight = contextRect.size.height * 0.5f + 0.5f;
     float width = contextRect.size.width;
     float height = contextRect.size.height;
@@ -97,21 +110,51 @@
     CGContextBeginPath(context);
     CGContextSetLineWidth(context, 1.2f);
     
-    if (isPlaying && sampleBuffer != nil)
+    if (isPlaying && voiceBuffers[0] != NULL && voiceBuffers[1] != NULL && voiceBuffers[2] != NULL && scopeBufferSize > 0)
+    {
+        static CGPoint linePoints[2048];
+        const int maxPoints = 2048;
+        float laneHeight = height / 3.0f;
+        float factorH = laneHeight / 33000;
+        int points = (int)width;
+        if (points > maxPoints)
+            points = maxPoints;
+        if ((unsigned int)points > scopeBufferSize)
+            points = (int)scopeBufferSize;
+
+        for (int voice = 0; voice < 3; voice++)
+        {
+            float zeroLine = laneHeight * (2 - voice) + (laneHeight * 0.5f) + 0.5f;
+            for (int i = 0; i < points; i++)
+            {
+                unsigned int idx = (scopeWriteIndex + (unsigned int)i) % scopeBufferSize;
+                linePoints[i].x = i + 0.5f;
+                linePoints[i].y = zeroLine + (voiceBuffers[voice][idx] * factorH);
+            }
+
+            CGContextBeginPath(context);
+            CGContextAddLines(context, linePoints, points);
+            CGContextDrawPath(context, kCGPathStroke);
+        }
+    }
+    else if (isPlaying && sampleBuffer != nil)
     {
         static CGPoint linePoints[2048];
         float stepW;
         //sample buffer contains signed 16 bit samples
         // -32768 - 32767
         float factorH = height/33000/2;
+        int points = (int)width;
+        if (points > 2048)
+            points = 2048;
         // create a ratio for the width, since the audio buffer can differ in size
         // and maybe less than width pixels
-        if ((width == 0) || (numSamples == 0))
+        if ((points == 0) || (numSamples == 0))
             stepW = 0;
-         else
-             stepW = (float)numSamples/(float)width;
+        else
+            stepW = (float)numSamples/(float)points;
         float indexS = 0;
-        for (int i = 0; i < width; i++)
+        for (int i = 0; i < points; i++)
         {
             linePoints[i].x = i + 0.5f;
             linePoints[i].y = zeroLineHeight + (sampleBuffer[(int)trunc(indexS)] * factorH);
@@ -120,7 +163,7 @@
             indexS +=stepW;
         }
         
-        CGContextAddLines(context, linePoints, width);
+        CGContextAddLines(context, linePoints, points);
         CGContextDrawPath(context, kCGPathStroke);
         
     }

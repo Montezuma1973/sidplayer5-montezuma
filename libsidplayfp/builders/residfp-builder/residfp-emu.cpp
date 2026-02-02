@@ -61,6 +61,9 @@ ReSIDfp::~ReSIDfp()
 {
     delete &m_sid;
     delete[] m_buffer;
+    delete[] m_scopeBuffers[0];
+    delete[] m_scopeBuffers[1];
+    delete[] m_scopeBuffers[2];
 }
 
 void ReSIDfp::filter6581Curve(double filterCurve)
@@ -146,6 +149,20 @@ void ReSIDfp::sampling(float systemclock, float freq,
     const int buffersize = std::ceil((freq / 1000.f) * 20.f);
     m_buffer = new short[buffersize];
     m_status = true;
+
+    static const unsigned int kScopeBufferSize = 2048;
+    if (m_scopeBufferSize != kScopeBufferSize)
+    {
+        delete[] m_scopeBuffers[0];
+        delete[] m_scopeBuffers[1];
+        delete[] m_scopeBuffers[2];
+
+        m_scopeBuffers[0] = new short[kScopeBufferSize];
+        m_scopeBuffers[1] = new short[kScopeBufferSize];
+        m_scopeBuffers[2] = new short[kScopeBufferSize];
+        m_scopeBufferSize = kScopeBufferSize;
+    }
+    m_sid.setScopeBuffers(m_scopeBuffers[0], m_scopeBuffers[1], m_scopeBuffers[2], m_scopeBufferSize);
 }
 
 // Set the emulated SID model
@@ -195,6 +212,18 @@ void ReSIDfp::combinedWaveforms(SidConfig::sid_cw_t cws)
 
     m_sid.setCombinedWaveforms(combinedWaveforms);
     m_status = true;
+}
+
+const short* ReSIDfp::scopeBuffer(unsigned int voice) const
+{
+    if (voice > 2 || m_scopeBufferSize == 0)
+        return nullptr;
+    return m_sid.getScopeBuffer(voice);
+}
+
+unsigned int ReSIDfp::scopeBufferWriteIndex() const
+{
+    return m_sid.getScopeWriteIndex();
 }
 
 }

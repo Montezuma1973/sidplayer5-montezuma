@@ -88,6 +88,11 @@ private:
     /// SID voices
     Voice voice[3];
 
+    /// Optional scope buffers (per-voice)
+    short* scopeBuffers[3] = { nullptr, nullptr, nullptr };
+    unsigned int scopeBufferSize = 0;
+    unsigned int scopeWriteIndex = 0;
+
     /// Used to amplify the output by x/2 to get an adequate playback volume
     int scaleFactor;
 
@@ -163,6 +168,11 @@ public:
      * @throw SIDError
      */
     void setCombinedWaveforms(CombinedWaveforms cws);
+
+    void setScopeBuffers(short* voice1, short* voice2, short* voice3, unsigned int size);
+    const short* getScopeBuffer(unsigned int voiceIndex) const;
+    unsigned int getScopeBufferSize() const { return scopeBufferSize; }
+    unsigned int getScopeWriteIndex() const { return scopeWriteIndex; }
 
     /**
      * SID reset.
@@ -348,6 +358,19 @@ int SID::clock(unsigned int cycles, short* buf)
                 if (unlikely(resampler->input(c64Output)))
                 {
                     buf[s++] = resampler->getOutput(scaleFactor);
+
+                    if (scopeBufferSize != 0 && scopeBuffers[0] != nullptr)
+                    {
+                        const int v1 = filter->normalizedVoiceOutput(voice[0]) - (1 << 15);
+                        const int v2 = filter->normalizedVoiceOutput(voice[1]) - (1 << 15);
+                        const int v3 = filter->normalizedVoiceOutput(voice[2]) - (1 << 15);
+
+                        const unsigned int idx = scopeWriteIndex;
+                        scopeBuffers[0][idx] = static_cast<short>(v1);
+                        scopeBuffers[1][idx] = static_cast<short>(v2);
+                        scopeBuffers[2][idx] = static_cast<short>(v3);
+                        scopeWriteIndex = (idx + 1) % scopeBufferSize;
+                    }
                 }
             }
 

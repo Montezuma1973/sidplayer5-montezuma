@@ -16,6 +16,7 @@
 #include <sidplayfp.h>
 #include <residfp.h>
 #include <resid.h>
+#include "residfp-emu.h"
 
 #include "SidTuneInfo.h"
 #include "SidTuneInfoImpl.h"
@@ -714,6 +715,38 @@ static inline float approximate_dac(int x, float kinkiness)
             *outputBuffer++ = (short) (sample / mPlaybackSettings.mOversampling);
         }
     }
+}
+
+- (const short*) voiceScopeBufferForVoice:(int) voice
+{
+    if (voice < 0 || voice > 2)
+        return NULL;
+    if (mBuilder == NULL)
+        return NULL;
+    libsidplayfp::ReSIDfp* sid = mBuilder->getSid(0);
+    if (sid == nullptr)
+        return NULL;
+    return sid->scopeBuffer((unsigned int)voice);
+}
+
+- (unsigned int) voiceScopeBufferSize
+{
+    if (mBuilder == NULL)
+        return 0;
+    libsidplayfp::ReSIDfp* sid = mBuilder->getSid(0);
+    if (sid == nullptr)
+        return 0;
+    return sid->scopeBufferSize();
+}
+
+- (unsigned int) voiceScopeWriteIndex
+{
+    if (mBuilder == NULL)
+        return 0;
+    libsidplayfp::ReSIDfp* sid = mBuilder->getSid(0);
+    if (sid == nullptr)
+        return 0;
+    return sid->scopeBufferWriteIndex();
 }
 - (int) hasTuneInformationStrings
 {

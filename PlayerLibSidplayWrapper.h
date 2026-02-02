@@ -72,6 +72,9 @@ struct SidRegisterFrame
 - (BOOL) startSubtune:(int) which;
 - (BOOL) initCurrentSubtune;
 - (void) fillBuffer:(void*) buffer withLen: (int) len;
+- (const short*) voiceScopeBufferForVoice:(int) voice;
+- (unsigned int) voiceScopeBufferSize;
+- (unsigned int) voiceScopeWriteIndex;
 - (int) getTempo;       //    { return mCurrentTempo; }
 - (void) setTempo:(int)tempo;
 - (void) setVoiceVolume:(float)volume forVoice:(int) voice;

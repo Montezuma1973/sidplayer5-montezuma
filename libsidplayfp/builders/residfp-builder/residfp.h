@@ -26,6 +26,8 @@
 #include "sidplayfp/sidbuilder.h"
 #include "sidplayfp/siddefs.h"
 
+namespace libsidplayfp { class ReSIDfp; }
+
 /**
  * ReSIDfp Builder Class
  */
@@ -87,6 +89,8 @@ public:
      * @param cws 
      */
     void combinedWaveformsStrength(SidConfig::sid_cw_t cws);
+
+    libsidplayfp::ReSIDfp* getSid(unsigned int index = 0) const;
 
     //@}
 };

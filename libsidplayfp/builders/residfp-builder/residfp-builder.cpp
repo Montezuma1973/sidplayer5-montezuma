@@ -95,3 +95,18 @@ void ReSIDfpBuilder::combinedWaveformsStrength(SidConfig::sid_cw_t cws)
     for (libsidplayfp::sidemu* e: sidobjs)
         static_cast<libsidplayfp::ReSIDfp*>(e)->combinedWaveforms(cws);
 }
+
+libsidplayfp::ReSIDfp* ReSIDfpBuilder::getSid(unsigned int index) const
+{
+    if (index >= sidobjs.size())
+        return nullptr;
+
+    unsigned int i = 0;
+    for (libsidplayfp::sidemu* e: sidobjs)
+    {
+        if (i == index)
+            return static_cast<libsidplayfp::ReSIDfp*>(e);
+        i++;
+    }
+    return nullptr;
+}

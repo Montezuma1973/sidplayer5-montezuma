@@ -891,6 +891,24 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         return audioDriver->getSampleBuffer();
     return NULL;
 }
+- (const short*) voiceScopeBufferForVoice:(int) voice
+{
+    if (player == NULL)
+        return NULL;
+    return [player voiceScopeBufferForVoice:voice];
+}
+- (unsigned int) voiceScopeBufferSize
+{
+    if (player == NULL)
+        return 0;
+    return [player voiceScopeBufferSize];
+}
+- (unsigned int) voiceScopeWriteIndex
+{
+    if (player == NULL)
+        return 0;
+    return [player voiceScopeWriteIndex];
+}
 - (BOOL) audioDriverIsPlaying
 {
     if (audioDriver != NULL)
