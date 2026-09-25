@@ -7,7 +7,9 @@ DERIVED_DATA ?= build/DerivedData
 BUILD_PRODUCTS := $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)
 APP := $(BUILD_PRODUCTS)/SIDPLAY.app
 
-XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration $(CONFIGURATION)
+MACOSX_DEPLOYMENT_TARGET ?= 12.0
+
+XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration $(CONFIGURATION) MACOSX_DEPLOYMENT_TARGET=$(MACOSX_DEPLOYMENT_TARGET)
 
 build:
 	$(XCODEBUILD) build \
@@ -28,8 +30,7 @@ run: build adhoc-sign unquarantine
 	open $(APP)
 
 archive:
-	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration $(CONFIGURATION) \
-	  archive -archivePath build/SIDPLAY.xcarchive
+	$(XCODEBUILD) archive -archivePath build/SIDPLAY.xcarchive
 
 clean:
 	rm -rf $(DERIVED_DATA)

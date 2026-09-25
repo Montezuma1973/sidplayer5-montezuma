@@ -39,5 +39,6 @@ Temporary Items
 # Build artifacts and derived data
 build/
 DerivedData/
+.deriveddata/
 */build/
 **/ExplicitPrecompiledModules/
