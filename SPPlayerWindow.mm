@@ -18,6 +18,8 @@
 #import "SPSidNoteUtils.h"
 #import "SPMixerView.h"
 
+#import "PlayerLibSidplayWrapper.h"
+
 #import <MediaPlayer/MediaPlayer.h>
 #import "AudioCoreDriverNew.h"
 #include <new>
@@ -297,6 +299,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     
     [exportController setOwnerWindow:self];
     
+    showPlayButton = YES;
     //disable Update item for now
     //[checkForUpdatesMenuItem setEnabled:FALSE];
     
@@ -572,6 +575,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         //[miniPlayPauseButton setAlternateImage:[NSImage imageNamed:@"pause_pressed"]];
 
         [MPNowPlayingInfoCenter defaultCenter].playbackState = MPNowPlayingPlaybackStatePlaying;
+        showPlayButton = false;
     }
     else
     {
@@ -582,6 +586,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         //[miniPlayPauseButton setAlternateImage:[NSImage imageNamed:@"play_pressed"]];
 
         [MPNowPlayingInfoCenter defaultCenter].playbackState = MPNowPlayingPlaybackStatePaused;
+        showPlayButton = true;
     }
 }
 
@@ -632,6 +637,14 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [statusDisplay setPlaybackSeconds:seconds];
     [miniStatusDisplay setPlaybackSeconds:seconds];
     [browserDataSource updateCurrentSong:seconds];
+
+    // disable sidPopup menu in case of USB player
+    if ([player isUsbDeviceActive]) {
+        [sidPopup setEnabled:FALSE];
+    } else
+        [sidPopup setEnabled:TRUE];
+    [sidPopup setNeedsDisplay:TRUE];
+    [sidPopup.superview displayIfNeeded];
     
     // update elapsed time for media controls
     NSMutableDictionary *nowPlayingInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
@@ -657,7 +670,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         if (audioDriver->getBufferUnderrunDetected())
         {
             updatesWithNoBufferUnderrun = 0;
-            audioDriver->stopPlayback();
+            [player stopPlayback];
             audioDriver->setBufferUnderrunDetected(false);
             [self setPlayPauseButtonToPause:NO];
             
@@ -686,6 +699,16 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 {
     if (infoWindowController != nil)
         [[infoWindowController containerView] updateAnimatedViews];
+    if ([player usbError]) {
+        // in case of USB issues stop
+        [self clickStopButton:self];
+        [player releaseUSBDevices];
+        // restart everything.
+        player = [[PlayerLibSidplayWrapper alloc] init];
+        audioDriver->initialize(player);
+        [player setAudioDriver:audioDriver];
+        return;
+    }
     
     if (fadeOutInProgress)
     {
@@ -877,13 +900,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 }
 - (void) audioDriverStartPlaying
 {
-    if (audioDriver)
-        audioDriver->startPlayback();
+    [player startPlayback];
 }
 - (void) audioDriverStopPlaying
 {
-    if (audioDriver)
-        audioDriver->stopPlayback();
+    [player stopPlayback];
 }
 - (short*) audioDriverSampleBuffer
 {
@@ -1196,15 +1217,15 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         return;
     }
     
-    if (audioDriver->getIsPlaying())
-    {
-        audioDriver->stopPlayback();
-        [self setPlayPauseButtonToPause:NO];
-    }
-    else
-    {
-        audioDriver->startPlayback();
+    if (showPlayButton) {
+        if ([player isPlaying])
+            [player resumePlayback];
+        else
+            [player startPlayback];
         [self setPlayPauseButtonToPause:YES];
+    } else {
+        [player pausePlayback];
+        [self setPlayPauseButtonToPause:NO];
     }
     
     [[SPPreferencesController sharedInstance] save];
@@ -1227,7 +1248,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     if (audioDriver == NULL)
         return;
     
-    audioDriver->stopPlayback();
+    [player stopPlayback];
     [self setPlayPauseButtonToPause:NO];
     if (voiceNotesView != nil)
         [voiceNotesView clearNotes];
@@ -1700,7 +1721,6 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [stackViewExternal2 setHidden:!enable_ext2];
     [stackViewExternal3 setHidden:!enable_ext3];
     [stackViewExternal4 setHidden:!enable_ext4];
-    
 }
 // ----------------------------------------------------------------------------
 - (IBAction) SIDSelectorButtonPressed:(id)sender
@@ -1734,11 +1754,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         [gPreferences getPlaybackSettings:&dummySettings];
         dummySettings.SIDselectorOverrideActive = YES;
         dummySettings.SIDselectorOverrideModel = 0;
-        if (audioDriver->getIsPlaying())
+        if ([player isPlaying])
         {
-            audioDriver->stopPlayback();
+            [player stopPlayback];
             [player initEmuEngineWithSettings:&dummySettings];
-            audioDriver->startPlayback();
+            [player startPlayback];
         } else {
             [player initEmuEngineWithSettings:&dummySettings];
         }
@@ -1771,11 +1791,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         dummySettings.SIDselectorOverrideModel = 1;
         
         [gPreferences copyPlaybackSettings:&dummySettings];
-        if (audioDriver->getIsPlaying())
+        if ([player isPlaying])
         {
-            audioDriver->stopPlayback();
+            [player stopPlayback];
             [player initEmuEngineWithSettings:&dummySettings];
-            audioDriver->startPlayback();
+            [player startPlayback];
         } else {
             [player initEmuEngineWithSettings:&dummySettings];
         }
@@ -1794,11 +1814,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     dummySettings.SIDselectorOverrideActive = NO;
     dummySettings.SIDselectorOverrideModel = 0;
     // reconfigure replayer
-    if (audioDriver->getIsPlaying())
+    if ([player isPlaying])
     {
-        audioDriver->stopPlayback();
+        [player stopPlayback];
         [player initEmuEngineWithSettings:&dummySettings];
-        audioDriver->startPlayback();
+        [player startPlayback];
     } else {
         [player initEmuEngineWithSettings:&dummySettings];
     }

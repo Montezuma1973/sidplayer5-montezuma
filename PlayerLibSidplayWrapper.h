@@ -15,7 +15,14 @@
 
 #include "PlaybackSettings.h"
 
+
+#define USBSIB_PICO_VENDOR_ID      0xCAFE
+#define USBSIB_PICO_PRODUCT_ID     0x4011
+
+
 typedef int_fast64_t event_clock_t;
+@class PlayerUsbWorker;
+@class USBDeviceWatcher;
 
 NS_ASSUME_NONNULL_BEGIN
 // for PopupSIDSelector
@@ -42,6 +49,8 @@ struct SidRegisterFrame
 @interface PlayerLibSidplayWrapper : NSObject
 {
     BOOL  mExtUSBDeviceActive;
+    BOOL  mUsbErrorDetectedPico; //USBSID-Pico
+    BOOL  mUsbErrorDetectedSB;   //SIDBlaster
     char  mTuneBuffer[TUNE_BUFFER_SIZE];
     int   mTuneLength;
     
@@ -53,7 +62,8 @@ struct SidRegisterFrame
     int  mPreviousOversamplingFactor;
     char* mOversamplingBuffer;
 }
-
+@property (nonatomic, strong) PlayerUsbWorker *usbWorker;
+@property USBDeviceWatcher *usbWatcher;
 @property (NS_NONATOMIC_IOSONLY, readonly) const char* sChipModel6581;
 @property (NS_NONATOMIC_IOSONLY, readonly) const char* sChipModel8580;
 @property (NS_NONATOMIC_IOSONLY, readonly) const char* sChipModelUnknown;
@@ -71,6 +81,12 @@ struct SidRegisterFrame
 - (BOOL) startNextSubtune;
 - (BOOL) startSubtune:(int) which;
 - (BOOL) initCurrentSubtune;
+- (void) fillBufferUSB;
+- (void) startPlayback;
+- (void) pausePlayback;
+- (void) resumePlayback;
+- (void) stopPlayback;
+- (BOOL) isPlaying;
 - (void) fillBuffer:(void*) buffer withLen: (int) len;
 - (const short*) voiceScopeBufferForVoice:(int) voice;
 - (unsigned int) voiceScopeBufferSize;
@@ -110,6 +126,12 @@ struct SidRegisterFrame
 // for popoverSIDSelector
 - (int) getSIDModelFromTune;
 - (struct PlaybackSettings*) getCurrentPlaybackSettings;
+- (BOOL) isUsbDeviceActive;
+- (BOOL) usbError;
+- (void)releaseUSBDevices;
+
+- (void)reconnectVendorId:(uint16_t)vid productId:(uint16_t)pid;
+- (void)disconnectVendorId:(uint16_t)vid productId:(uint16_t)pid;
 
 - (struct SidRegisterFrame*) getCurrentSidRegisters;
 - (void) sidRegisterFrameHasChanged:(void*) inInstance inFrame:(struct SidRegisterFrame *) inRegisterFrame;

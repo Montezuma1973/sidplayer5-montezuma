@@ -77,12 +77,13 @@ extern NSString* SPUrlRequestUserAgentString;
 	IBOutlet NSMenuItem* exportTaskWindowMenuItem;
 	
     PlayerLibSidplayWrapper* player;
-	//AudioDriver* audioDriver;
+
 	NSString* currentTunePath;
 	NSInteger currentTuneLengthInSeconds;
 	CGFloat currentVolume;
 	BOOL volumeIsMuted;
 	BOOL fadeOutInProgress;
+    BOOL showPlayButton;
 	float fadeOutVolume;
 	
 	NSDate* lastBufferUnderrunCheckReset;
@@ -113,6 +114,8 @@ extern NSString* SPUrlRequestUserAgentString;
     __weak IBOutlet NSTextField *ExtText;
     __weak IBOutlet NSBox *ExtLine2;
         
+    __weak IBOutlet NSButton *sidPopup;
+    
     SPInfoWindowController* infoWindowController;
 	SPStilBrowserController* stilBrowserController;
 	SPPreferencesWindowController* prefsWindowController;
