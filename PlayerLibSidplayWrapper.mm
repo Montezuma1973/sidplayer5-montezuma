@@ -31,6 +31,7 @@
 // always needed
 #import "PlayerUsbWorker.h"
 #import "USBDeviceWatcher.h"
+#import "SPModPlayer.h"
 
 
 // bins
@@ -82,9 +83,16 @@ struct SidRegisterFrame currentRegisterFrame;
 SidTuneInfo*        mTuneInfo;
 AudioCoreDriverNew*        mAudioDriver;
 
+static SPModPlayer* mModPlayer = nil;
+static BOOL mIsModActive = NO;
+
 - (id)init
 {
     self = [super init];
+    if (mModPlayer == nil) {
+        mModPlayer = [[SPModPlayer alloc] init];
+    }
+    mIsModActive = NO;
     sChipModel6581        = "MOS 6581";
     sChipModel8580        = "MOS 8580";
     sChipModelUnknown     = "Unknown";
@@ -493,6 +501,8 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 
 - (BOOL)isTuneLoaded {
+    if (mIsModActive && mModPlayer)
+        return YES;
     if (mSidTune != nil)
         return YES;
     else
@@ -546,6 +556,26 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (BOOL) loadTuneByPath:(const char *)filename subtune:(int) subtune withSettings:(struct PlaybackSettings *)settings
 {
+    NSString* pathStr = [NSString stringWithUTF8String:filename];
+    if (mModPlayer && [SPModPlayer isModFile:pathStr])
+    {
+        int sampleRate = mAudioDriver ? mAudioDriver->getSampleRate() : 48000;
+        if ([mModPlayer loadTuneByPath:pathStr sampleRate:sampleRate])
+        {
+            mIsModActive = YES;
+            mSidTune = nullptr;
+            mCurrentSubtune = [mModPlayer getCurrentSubtune];
+            mSubtuneCount = [mModPlayer getSubtuneCount];
+            mDefaultSubtune = 1;
+            mTuneLength = 0;
+            return YES;
+        }
+    }
+
+    mIsModActive = NO;
+    if (mModPlayer)
+        [mModPlayer stopPlayback];
+
     FILE* fp = fopen(filename, "rb");
     
     if ( fp == NULL )
@@ -567,7 +597,30 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (BOOL) loadTuneFromBuffer:(char *)buffer withLength:(int) length subtune:(int) subtune withSettings:(struct PlaybackSettings *)settings
 {
-    if (length < 0 || length > TUNE_BUFFER_SIZE)
+    if (length <= 0)
+        return false;
+
+    NSData* data = [NSData dataWithBytesNoCopy:buffer length:length freeWhenDone:NO];
+    if (mModPlayer && [SPModPlayer isModData:data])
+    {
+        int sampleRate = mAudioDriver ? mAudioDriver->getSampleRate() : 48000;
+        if ([mModPlayer loadTuneFromBuffer:buffer withLength:length sampleRate:sampleRate])
+        {
+            mIsModActive = YES;
+            mSidTune = nullptr;
+            mCurrentSubtune = [mModPlayer getCurrentSubtune];
+            mSubtuneCount = [mModPlayer getSubtuneCount];
+            mDefaultSubtune = 1;
+            mTuneLength = length;
+            return YES;
+        }
+    }
+
+    mIsModActive = NO;
+    if (mModPlayer)
+        [mModPlayer stopPlayback];
+
+    if (length > TUNE_BUFFER_SIZE)
         return false;
     
     if (buffer[0] != 'P' && buffer[0] != 'R')
@@ -633,6 +686,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (BOOL) initCurrentSubtune
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer startSubtune:mCurrentSubtune];
+    }
     if (mSidTune == NULL)
         return false;
     
@@ -677,6 +733,10 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (void) setVoiceVolume:(float)volume forVoice:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer setVoiceVolume:volume forVoice:voice];
+        return;
+    }
     if (mSidEmuEngine == NULL)
         return;
     if (mBuilder_reSID == NULL)
@@ -699,6 +759,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (float) voiceVolumeForVoice:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer voiceVolumeForVoice:voice];
+    }
     if (voice < 0 || voice > 2)
         return 0.0f;
     return (float)mixer_value[voice];
@@ -706,6 +769,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (float) voicePreMuteVolumeForVoice:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer voicePreMuteVolumeForVoice:voice];
+    }
     if (voice < 0 || voice > 2)
         return 0.0f;
     return (float)mixer_preMute[voice];
@@ -713,6 +779,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (BOOL) isVoiceMuted:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer isVoiceMuted:voice];
+    }
     if (voice < 0 || voice > 2)
         return NO;
     return mixer_muted[voice];
@@ -720,6 +789,10 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (void) setVoiceMuted:(BOOL)muted forVoice:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer setVoiceMuted:muted forVoice:voice];
+        return;
+    }
     if (mSidEmuEngine == NULL)
         return;
     if (mBuilder_reSID == NULL)
@@ -745,6 +818,10 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (void) toggleVoiceMuted:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer toggleVoiceMuted:voice];
+        return;
+    }
     [self setVoiceMuted:![self isVoiceMuted:voice] forVoice:voice];
 }
 /* FIXME: FILTER SETTINGS?!
@@ -762,11 +839,21 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (int) getPlaybackSeconds
 {
+    if (mIsModActive && mModPlayer)
+        return [mModPlayer getPlaybackSeconds];
     if (mSidEmuEngine == NULL)
         return 0;
     
     return(mSidEmuEngine->time());// / 10);
 }
+
+- (int) getTotalTime
+{
+    if (mIsModActive && mModPlayer)
+        return [mModPlayer getTotalTimeSeconds];
+    return 0;
+}
+
 - (void) fillBufferUSB
 {
     // USB devices do not fill buffer, but need to be triggerd
@@ -781,6 +868,11 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (void) startPlayback
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer startPlayback];
+        mAudioDriver->startPlayback();
+        return;
+    }
 #ifndef NO_USB_SUPPORT
     if (mExtUSBDeviceActive)
         [self.usbWorker start];
@@ -789,6 +881,11 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (void) pausePlayback
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer pausePlayback];
+        mAudioDriver->stopPlayback();
+        return;
+    }
 #ifndef NO_USB_SUPPORT
     if (mExtUSBDeviceActive)
         [self.usbWorker pause];
@@ -797,6 +894,11 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (void) resumePlayback
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer resumePlayback];
+        mAudioDriver->startPlayback();
+        return;
+    }
 #ifndef NO_USB_SUPPORT
     if (mExtUSBDeviceActive)
         [self.usbWorker resume];
@@ -805,6 +907,11 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (void) stopPlayback
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer stopPlayback];
+        mAudioDriver->stopPlayback();
+        return;
+    }
 #ifndef NO_USB_SUPPORT
     if (mExtUSBDeviceActive)
         [self.usbWorker stop];
@@ -813,6 +920,8 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (BOOL) isPlaying
 {
+    if (mIsModActive && mModPlayer)
+        return [mModPlayer isPlaying];
 #ifndef NO_USB_SUPPORT
     if (mExtUSBDeviceActive)
         return self.usbWorker.isPlaying;
@@ -856,6 +965,10 @@ static inline float approximate_dac(int x, float kinkiness)
 //FIXME: we have void* defined, but use now short*
 - (void) fillBuffer:(void*) buffer withLen: (int) len
 {
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer fillBuffer:buffer withLen:len];
+        return;
+    }
     if (mSidEmuEngine == NULL)
         return;
     //libsidplayfp uses number of 16-Bit samples (short), not bytes for buffer count
@@ -899,6 +1012,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (const short*) voiceScopeBufferForVoice:(int) voice
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer voiceScopeBufferForVoice:voice];
+    }
     if (voice < 0 || voice > 2)
         return NULL;
     if (mBuilder == NULL)
@@ -911,6 +1027,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (unsigned int) voiceScopeBufferSize
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer voiceScopeBufferSize];
+    }
     if (mBuilder == NULL)
         return 0;
     libsidplayfp::ReSIDfp* sid = mBuilder->getSid(0);
@@ -921,6 +1040,9 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (unsigned int) voiceScopeWriteIndex
 {
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer voiceScopeWriteIndex];
+    }
     if (mBuilder == NULL)
         return 0;
     libsidplayfp::ReSIDfp* sid = mBuilder->getSid(0);
@@ -930,48 +1052,75 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (int) hasTuneInformationStrings
 {
-    return mTuneInfo->numberOfInfoStrings() >= 3;
+    if (mIsModActive && mModPlayer)
+        return 1;
+    return mTuneInfo ? (mTuneInfo->numberOfInfoStrings() >= 3) : 0;
 }
 
 - (const char*) getCurrentTitle
 {
-    return mTuneInfo->infoString(0);
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer getCurrentTitle];
+    }
+    return mTuneInfo ? mTuneInfo->infoString(0) : "";
 }
 
 - (const char*) getCurrentAuthor
 {
-    return mTuneInfo->infoString(1);
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer getCurrentAuthor];
+    }
+    return mTuneInfo ? mTuneInfo->infoString(1) : "";
 }
 - (const char*) getCurrentReleaseInfo
 {
-    return mTuneInfo->infoString(2);
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer getCurrentReleaseInfo];
+    }
+    return mTuneInfo ? mTuneInfo->infoString(2) : "";
 }
 - (unsigned short) getCurrentLoadAddress
 {
-    return mTuneInfo->loadAddr();
+    if (mIsModActive)
+        return 0;
+    return mTuneInfo ? mTuneInfo->loadAddr() : 0;
 }
 - (unsigned short) getSidChips
 {
-    return mTuneInfo->sidChips();
+    if (mIsModActive)
+        return 0;
+    return mTuneInfo ? mTuneInfo->sidChips() : 0;
 }
 - (unsigned short) getCurrentInitAddress
 {
-    return mTuneInfo->initAddr();
+    if (mIsModActive)
+        return 0;
+    return mTuneInfo ? mTuneInfo->initAddr() : 0;
 }
 - (unsigned short) getCurrentPlayAddress
 {
-    return mTuneInfo->playAddr();
+    if (mIsModActive)
+        return 0;
+    return mTuneInfo ? mTuneInfo->playAddr() : 0;
 }
 - (const char*) getCurrentFormat
 {
-    return mTuneInfo->formatString();
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer getCurrentFormat];
+    }
+    return mTuneInfo ? mTuneInfo->formatString() : "";
 }
 - (int) getCurrentFileSize;
 {
-    return mTuneInfo->dataFileLen();
+    if (mIsModActive)
+        return mTuneLength;
+    return mTuneInfo ? mTuneInfo->dataFileLen() : 0;
 }
 - (const char*) getCurrentChipModel
 {
+    if (mIsModActive && mModPlayer) {
+        return "Amiga Paula (4-voice 8-bit D/A)";
+    }
     if (mTuneInfo != NULL) {
         if (mTuneInfo->sidModel(0) == SidTuneInfo::SIDMODEL_6581)
             return sChipModel6581;
@@ -987,10 +1136,14 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (int) getCurrentSubtune
 {
+    if (mIsModActive && mModPlayer)
+        return [mModPlayer getCurrentSubtune];
     return mCurrentSubtune;
 }
 - (int) getSubtuneCount
 {
+    if (mIsModActive && mModPlayer)
+        return [mModPlayer getSubtuneCount];
     return mSubtuneCount;
 }
 - (int) getDefaultSubtune
@@ -1000,6 +1153,8 @@ static inline float approximate_dac(int x, float kinkiness)
 // for popoverSIDSelector
 - (int) getSIDModelFromTune
 {
+    if (mIsModActive)
+        return M_UNKNOWN;
     if (mTuneInfo != NULL) {
         if (mTuneInfo->sidModel(0) == SidTuneInfo::SIDMODEL_6581)
             return M_6581;
@@ -1011,6 +1166,10 @@ static inline float approximate_dac(int x, float kinkiness)
 - (BOOL) isUsbDeviceActive
 {
     return mExtUSBDeviceActive;
+}
+- (BOOL) isCurrentTuneMod
+{
+    return mIsModActive;
 }
 - (char*) getTuneBuffer:(int *)outTuneLength
 {
