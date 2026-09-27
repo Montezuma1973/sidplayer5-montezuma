@@ -79,6 +79,11 @@ NSDate* fillStart = nil;
 	
 	[self setPlaybackModeControlImages];
 
+	[pathControl setTarget:self];
+	[pathControl setAction:@selector(clickPathControl:)];
+	[pathControl setDoubleAction:@selector(clickPathControl:)];
+	[pathControl setEditable:NO];
+
 	NSArray* columns = [browserView tableColumns];
 	for (NSTableColumn* column in columns)
 	{
@@ -505,9 +510,6 @@ NSDate* fillStart = nil;
 - (void) navigateBack
 // ----------------------------------------------------------------------------
 {
-	if (rootPath == nil)
-		return;
-
 	if (browseHistoryIndex > 0)
 	{
 		browseHistoryIndex--;
@@ -527,9 +529,6 @@ NSDate* fillStart = nil;
 - (void) navigateForward
 // ----------------------------------------------------------------------------
 {
-	if (rootPath == nil)
-		return;
-
 	if (browseHistoryIndex < ([browseHistory count] - 1))
 	{
 		browseHistoryIndex++;
@@ -581,9 +580,6 @@ NSDate* fillStart = nil;
 - (IBAction) clickNavigateControl:(id)sender
 // ----------------------------------------------------------------------------
 {
-	if (rootPath == nil)
-		return;
-
 	if ([sender isSelectedForSegment:0])
 	{
 		[self navigateBack];
@@ -599,16 +595,69 @@ NSDate* fillStart = nil;
 - (IBAction) clickPathControl:(id)sender
 // ----------------------------------------------------------------------------
 {
-	if (rootPath == nil)
+	NSURL* url = nil;
+
+	// 1. Modern macOS (10.10+): check clickedPathItem on pathControl or sender
+	if ([pathControl respondsToSelector:@selector(clickedPathItem)])
+	{
+		NSPathControlItem* item = [pathControl clickedPathItem];
+		if (item != nil)
+			url = [item URL];
+	}
+
+	if (url == nil && [sender respondsToSelector:@selector(clickedPathItem)])
+	{
+		NSPathControlItem* item = [(NSPathControl*)sender clickedPathItem];
+		if (item != nil)
+			url = [item URL];
+	}
+
+	// 2. Legacy fallback: check clickedPathComponentCell
+	if (url == nil && [pathControl respondsToSelector:@selector(clickedPathComponentCell)])
+	{
+		NSPathComponentCell* cell = [pathControl clickedPathComponentCell];
+		if (cell != nil)
+			url = [cell URL];
+	}
+
+	if (url == nil && [sender respondsToSelector:@selector(clickedPathComponentCell)])
+	{
+		NSPathComponentCell* cell = [(NSPathControl*)sender clickedPathComponentCell];
+		if (cell != nil)
+			url = [cell URL];
+	}
+
+	// 3. Fallback to pathControl URL
+	if (url == nil)
+	{
+		url = [pathControl URL];
+	}
+
+	if (url == nil || ![url isFileURL])
 		return;
 
-	NSPathComponentCell* cell = [sender clickedPathComponentCell];
-	NSString* path = [[cell URL] relativePath];
-	
-	if ([[path pathComponents] count] < [[rootPath pathComponents] count])
+	NSString* path = [url path];
+	if (path == nil || path.length == 0)
 		return;
 
-	[self browseToPath:path];
+	// If inside a collection, do not navigate above the collection root
+	if (rootPath != nil && [currentPath hasPrefix:rootPath])
+	{
+		if ([[path pathComponents] count] < [[rootPath pathComponents] count])
+			return;
+	}
+
+	BOOL isDirectory = NO;
+	BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory];
+	if (exists && isDirectory)
+	{
+		if (![currentPath isEqualToString:path])
+			[self browseToPath:path];
+	}
+	else if (exists)
+	{
+		[self browseToFile:path andSetAsCurrentItem:YES];
+	}
 }
 
 
