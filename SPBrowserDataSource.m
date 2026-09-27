@@ -438,27 +438,31 @@ NSDate* fillStart = nil;
 - (void) browseToPath:(NSString*)path
 // ----------------------------------------------------------------------------
 {
+	if (path == nil || path.length == 0)
+		return;
+
 	NSString* previousPath = currentPath;
 	
 	if ([browseHistory count] == 0)
 	{
-		[browseHistory addObject:previousPath];
+		if (previousPath != nil)
+			[browseHistory addObject:previousPath];
 		[browseHistory addObject:path];
-		browseHistoryIndex = 1;
+		browseHistoryIndex = (int)[browseHistory count] - 1;
 	}
 	else
 	{
 		browseHistoryIndex++;
-		[browseHistory removeObjectsInRange:NSMakeRange(browseHistoryIndex, [browseHistory count] - browseHistoryIndex)];
+		if (browseHistoryIndex < [browseHistory count])
+			[browseHistory removeObjectsInRange:NSMakeRange(browseHistoryIndex, [browseHistory count] - browseHistoryIndex)];
 		[browseHistory insertObject:path atIndex:browseHistoryIndex];
 		[navigationControl setEnabled:NO forSegment:1];
 	}
 
-	[navigationControl setEnabled:YES forSegment:0];
-
-	//NSLog(@"browse to %@, history: %@, index: %d\n", path, browseHistory, browseHistoryIndex);
-
 	[self switchToPath:path];
+
+	[navigationControl setEnabled:(browseHistoryIndex > 0) forSegment:0];
+	[navigationControl setEnabled:(browseHistoryIndex < ([browseHistory count] - 1)) forSegment:1];
 }
 
 
@@ -466,6 +470,9 @@ NSDate* fillStart = nil;
 - (void) switchToPath:(NSString*)path
 // ----------------------------------------------------------------------------
 {
+	if (path == nil || path.length == 0)
+		return;
+
 	[self setInProgress:YES];
 	[self stopSearchAndClearSearchString];
 	
@@ -480,8 +487,11 @@ NSDate* fillStart = nil;
 		[SPBrowserItem fillArray:rootItems withDirectoryContentsAtPath:currentPath andParent:nil];
 		[rootItems sortUsingDescriptors:[browserView sortDescriptors]];
 		[browserView reloadData];
-		[browserView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
-   		[browserView scrollRowToVisible:0];
+		if ([rootItems count] > 0)
+		{
+			[browserView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
+			[browserView scrollRowToVisible:0];
+		}
 	}
 	
 	[pathControl setURL:[NSURL fileURLWithPath:currentPath]];
