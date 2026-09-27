@@ -51,6 +51,12 @@ enum BrowserMode
 @end
 
 
+@interface SPPathControl : NSPathControl
+@property (nonatomic, strong, nullable) NSURL *customClickedURL;
+- (nullable NSURL *)urlAtPoint:(NSPoint)point;
+@end
+
+
 @interface SPBrowserDataSource : NSObject <NSMetadataQueryDelegate>
 {
 	NSMutableArray* rootItems;
@@ -77,7 +83,7 @@ enum BrowserMode
 	NSTableColumn* tableColumns[COLUMN_COUNT];
 
 	IBOutlet SPBrowserView* browserView;
-	IBOutlet NSPathControl* pathControl;
+	IBOutlet SPPathControl* pathControl;
 	IBOutlet NSSegmentedControl* navigationControl;
 	IBOutlet NSProgressIndicator* progressIndicator;
 	IBOutlet NSProgressIndicator* searchTypeProgressIndicator;

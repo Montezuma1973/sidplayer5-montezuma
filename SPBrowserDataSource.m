@@ -19,6 +19,101 @@
 #import "SPGradientBox.h"
 
 
+@implementation SPPathControl
+
+@synthesize customClickedURL;
+
+- (nullable NSURL *)urlAtPoint:(NSPoint)location
+{
+	NSPathCell *cell = (NSPathCell *)[self cell];
+	if ([cell isKindOfClass:[NSPathCell class]])
+	{
+		// 1. Direct hit-test using AppKit's pathComponentCellAtPoint:withFrame:inView:
+		NSPathComponentCell *compCell = [cell pathComponentCellAtPoint:location withFrame:[self bounds] inView:self];
+		if (compCell != nil && compCell.URL != nil)
+		{
+			return compCell.URL;
+		}
+
+		// 2. Check bounding box of each pathComponentCell
+		NSArray<NSPathComponentCell *> *cells = [cell pathComponentCells];
+		for (NSUInteger i = 0; i < [cells count]; i++)
+		{
+			NSPathComponentCell *c = cells[i];
+			NSRect r = [cell rectOfPathComponentCell:c withFrame:[self bounds] inView:self];
+			if (NSPointInRect(location, r))
+			{
+				if (c.URL != nil)
+					return c.URL;
+				if (i < self.pathItems.count && self.pathItems[i].URL != nil)
+					return self.pathItems[i].URL;
+			}
+		}
+
+		// 3. Horizontal span match across cells (tolerates clicks with minor vertical offset)
+		for (NSUInteger i = 0; i < [cells count]; i++)
+		{
+			NSPathComponentCell *c = cells[i];
+			NSRect r = [cell rectOfPathComponentCell:c withFrame:[self bounds] inView:self];
+			if (r.size.width > 0 && location.x >= NSMinX(r) && location.x <= NSMaxX(r))
+			{
+				if (c.URL != nil)
+					return c.URL;
+				if (i < self.pathItems.count && self.pathItems[i].URL != nil)
+					return self.pathItems[i].URL;
+			}
+		}
+	}
+
+	// 4. Check subviews if AppKit uses modern view-based items
+	if (self.subviews.count > 0 && self.pathItems.count == self.subviews.count)
+	{
+		for (NSUInteger i = 0; i < self.subviews.count; i++)
+		{
+			NSView *v = self.subviews[i];
+			if (NSPointInRect(location, v.frame) || (v.frame.size.width > 0 && location.x >= NSMinX(v.frame) && location.x <= NSMaxX(v.frame)))
+			{
+				if (self.pathItems[i].URL != nil)
+					return self.pathItems[i].URL;
+			}
+		}
+	}
+
+	// 5. Fallback: clickedPathItem if AppKit populated it
+	if (self.clickedPathItem != nil && self.clickedPathItem.URL != nil)
+	{
+		return self.clickedPathItem.URL;
+	}
+
+	return nil;
+}
+
+- (void)mouseDown:(NSEvent *)event
+{
+	NSPoint location = [self convertPoint:[event locationInWindow] fromView:nil];
+	NSURL *clickedURL = [self urlAtPoint:location];
+
+	self.customClickedURL = clickedURL;
+
+	[super mouseDown:event];
+
+	// If super mouseDown: completed and customClickedURL is still present
+	// (meaning standard single-click did not trigger an action callback)
+	if (self.customClickedURL != nil)
+	{
+		NSURL *urlToNavigate = self.customClickedURL;
+		if (self.action != NULL && self.target != nil)
+		{
+			self.customClickedURL = urlToNavigate;
+			[NSApp sendAction:self.action to:self.target from:self];
+			self.customClickedURL = nil;
+		}
+	}
+}
+
+@end
+
+
 @implementation SPBrowserDataSource
 
 NSString* SPBrowserItemPBoardType = @"SPBrowserItemPBoardType";
@@ -607,8 +702,21 @@ NSDate* fillStart = nil;
 {
 	NSURL* url = nil;
 
-	// 1. Modern macOS (10.10+): check clickedPathItem on pathControl or sender
-	if ([pathControl respondsToSelector:@selector(clickedPathItem)])
+	// 1. Check customClickedURL from SPPathControl
+	if ([sender respondsToSelector:@selector(customClickedURL)])
+	{
+		url = [(SPPathControl*)sender customClickedURL];
+		[(SPPathControl*)sender setCustomClickedURL:nil];
+	}
+
+	if (url == nil && [pathControl respondsToSelector:@selector(customClickedURL)])
+	{
+		url = [pathControl customClickedURL];
+		[pathControl setCustomClickedURL:nil];
+	}
+
+	// 2. Modern macOS (10.10+): check clickedPathItem on pathControl or sender
+	if (url == nil && [pathControl respondsToSelector:@selector(clickedPathItem)])
 	{
 		NSPathControlItem* item = [pathControl clickedPathItem];
 		if (item != nil)
@@ -622,7 +730,7 @@ NSDate* fillStart = nil;
 			url = [item URL];
 	}
 
-	// 2. Legacy fallback: check clickedPathComponentCell
+	// 3. Legacy fallback: check clickedPathComponentCell
 	if (url == nil && [pathControl respondsToSelector:@selector(clickedPathComponentCell)])
 	{
 		NSPathComponentCell* cell = [pathControl clickedPathComponentCell];
@@ -637,12 +745,6 @@ NSDate* fillStart = nil;
 			url = [cell URL];
 	}
 
-	// 3. Fallback to pathControl URL
-	if (url == nil)
-	{
-		url = [pathControl URL];
-	}
-
 	if (url == nil || ![url isFileURL])
 		return;
 
@@ -650,23 +752,27 @@ NSDate* fillStart = nil;
 	if (path == nil || path.length == 0)
 		return;
 
+	NSString* stdPath = [path stringByStandardizingPath];
+	NSString* stdCurrent = [currentPath stringByStandardizingPath];
+	NSString* stdRoot = [rootPath stringByStandardizingPath];
+
 	// If inside a collection, do not navigate above the collection root
-	if (rootPath != nil && [currentPath hasPrefix:rootPath])
+	if (stdRoot != nil && stdCurrent != nil && [stdCurrent hasPrefix:stdRoot])
 	{
-		if ([[path pathComponents] count] < [[rootPath pathComponents] count])
+		if ([[stdPath pathComponents] count] < [[stdRoot pathComponents] count])
 			return;
 	}
 
 	BOOL isDirectory = NO;
-	BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory];
+	BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:stdPath isDirectory:&isDirectory];
 	if (exists && isDirectory)
 	{
-		if (![currentPath isEqualToString:path])
-			[self browseToPath:path];
+		if (![stdCurrent isEqualToString:stdPath])
+			[self browseToPath:stdPath];
 	}
 	else if (exists)
 	{
-		[self browseToFile:path andSetAsCurrentItem:YES];
+		[self browseToFile:stdPath andSetAsCurrentItem:YES];
 	}
 }
 
