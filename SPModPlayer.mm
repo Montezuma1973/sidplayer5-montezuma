@@ -63,6 +63,44 @@ static const unsigned int kModScopeBufferSize = 2048;
     return (xmp_test_module_from_memory(data.bytes, (long)data.length, &ti) == 0);
 }
 
++ (BOOL) getModInfoForPath:(NSString*)path title:(NSString**)outTitle format:(NSString**)outFormat
+{
+    if (!path || path.length == 0)
+        return NO;
+    
+    NSString* ext = [path.pathExtension lowercaseString];
+    BOOL knownExt = ([ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] ||
+                     [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"] ||
+                     [ext isEqualToString:@"med"] || [ext isEqualToString:@"okt"]);
+    
+    struct xmp_test_info ti;
+    if (xmp_test_module([path fileSystemRepresentation], &ti) == 0)
+    {
+        if (outTitle) {
+            NSString* t = [NSString stringWithCString:ti.name encoding:NSISOLatin1StringEncoding];
+            if (!t || [t stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length == 0)
+                t = [[path lastPathComponent] stringByDeletingPathExtension];
+            *outTitle = t;
+        }
+        if (outFormat) {
+            NSString* f = [NSString stringWithCString:ti.type encoding:NSISOLatin1StringEncoding];
+            if (!f || f.length == 0)
+                f = @"Tracker Module";
+            *outFormat = f;
+        }
+        return YES;
+    }
+    else if (knownExt)
+    {
+        if (outTitle)
+            *outTitle = [[path lastPathComponent] stringByDeletingPathExtension];
+        if (outFormat)
+            *outFormat = [ext uppercaseString];
+        return YES;
+    }
+    return NO;
+}
+
 - (instancetype) init
 {
     self = [super init];

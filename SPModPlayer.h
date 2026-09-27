@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (BOOL) isModFile:(NSString*)path;
 + (BOOL) isModData:(NSData*)data;
++ (BOOL) getModInfoForPath:(NSString*)path title:(NSString* _Nullable * _Nullable)outTitle format:(NSString* _Nullable * _Nullable)outFormat;
 
 - (BOOL) loadTuneByPath:(NSString*)path sampleRate:(int)sampleRate;
 - (BOOL) loadTuneFromBuffer:(const char*)buffer withLength:(int)length sampleRate:(int)sampleRate;

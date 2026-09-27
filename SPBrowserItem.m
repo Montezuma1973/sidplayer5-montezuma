@@ -3,6 +3,7 @@
 #import "SPCollectionUtilities.h"
 #import "SPPlaylist.h"
 #import "SPPlaylistItem.h"
+#import "SPModPlayer.h"
 
 
 @implementation SPBrowserItem
@@ -61,14 +62,28 @@
 				size_t length = fread(filebuffer, 1, max_tunesize, fileHandle);
 				fclose(fileHandle);
 
-				if (filebuffer[0] != 'P' && filebuffer[0] != 'R')
-					return nil;
+				BOOL isSid = (length >= 4) &&
+				             (filebuffer[0] == 'P' || filebuffer[0] == 'R') &&
+				             (filebuffer[1] == 'S' && filebuffer[2] == 'I' && filebuffer[3] == 'D');
 
-				if ( filebuffer[1] != 'S' ||
-					 filebuffer[2] != 'I' ||
-					 filebuffer[3] != 'D' )
+				if (!isSid)
 				{
-					return nil;
+					NSString* modTitle = nil;
+					NSString* modFormat = nil;
+					if ([SPModPlayer getModInfoForPath:thePath title:&modTitle format:&modFormat])
+					{
+						subTuneCount = 1;
+						defaultSubTune = 1;
+						title = modTitle ? modTitle : [thePath.lastPathComponent stringByDeletingPathExtension];
+						author = @"";
+						releaseInfo = modFormat ? modFormat : @"Tracker Module";
+						[self setPlayTimeInSeconds:0];
+						return self;
+					}
+					else
+					{
+						return nil;
+					}
 				}
 
 				subTuneCount = *(unsigned short*)(filebuffer + 0x0e);
