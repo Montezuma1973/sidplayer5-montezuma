@@ -38,15 +38,25 @@ static const unsigned int kModScopeBufferSize = 2048;
 
 @implementation SPModPlayer
 
+static inline BOOL IsKnownModExtension(NSString* ext)
+{
+    if (!ext) return NO;
+    return ([ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"]  ||
+            [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"]  ||
+            [ext isEqualToString:@"mtm"] || [ext isEqualToString:@"ft1"] ||
+            [ext isEqualToString:@"ft"]  || [ext isEqualToString:@"med"] ||
+            [ext isEqualToString:@"okt"] || [ext isEqualToString:@"stm"] ||
+            [ext isEqualToString:@"669"] || [ext isEqualToString:@"far"] ||
+            [ext isEqualToString:@"ult"]);
+}
+
 + (BOOL) isModFile:(NSString*)path
 {
     if (!path || path.length == 0)
         return NO;
     
     NSString* ext = [path.pathExtension lowercaseString];
-    if ([ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] ||
-        [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"] ||
-        [ext isEqualToString:@"med"] || [ext isEqualToString:@"okt"])
+    if (IsKnownModExtension(ext))
     {
         return YES;
     }
@@ -69,9 +79,7 @@ static const unsigned int kModScopeBufferSize = 2048;
         return NO;
     
     NSString* ext = [path.pathExtension lowercaseString];
-    BOOL knownExt = ([ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] ||
-                     [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"] ||
-                     [ext isEqualToString:@"med"] || [ext isEqualToString:@"okt"]);
+    BOOL knownExt = IsKnownModExtension(ext);
     
     struct xmp_test_info ti;
     if (xmp_test_module([path fileSystemRepresentation], &ti) == 0)
@@ -85,7 +93,7 @@ static const unsigned int kModScopeBufferSize = 2048;
         if (outFormat) {
             NSString* f = [NSString stringWithCString:ti.type encoding:NSISOLatin1StringEncoding];
             if (!f || f.length == 0)
-                f = @"Tracker Module";
+                f = [ext uppercaseString];
             *outFormat = f;
         }
         return YES;

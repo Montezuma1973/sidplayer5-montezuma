@@ -2,6 +2,7 @@
 #import "SPStilBrowserController.h"
 #import "SPPreferencesController.h"
 #import "SPPlayerWindow.h"
+#import "SPModPlayer.h"
 
 
 @implementation SPCollectionUtilities
@@ -95,7 +96,7 @@ static SPCollectionUtilities* sharedInstance = nil;
         //NSLog(@"total sub folders: %d, totalFiles: %d, random: %d\n", totalSubFolders, totalFiles, randomFileIndex);
         NSString* randomFile = rootItems[randomFileIndex];
         NSString* ext = randomFile.pathExtension.lowercaseString;
-        if ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] || [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"])
+        if ([ext isEqualToString:@"sid"] || [SPModPlayer isModFile:randomFile])
             return [root stringByAppendingPathComponent:randomFile];
     }
     
@@ -139,7 +140,7 @@ static SPCollectionUtilities* sharedInstance = nil;
     else
     {
         NSString* ext = path.pathExtension.lowercaseString;
-        if (exists && ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] || [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"]) )
+        if (exists && ([ext isEqualToString:@"sid"] || [SPModPlayer isModFile:path]) )
             return path;
         else
             return [self pathOfRandomCollectionItemInPath:nil];

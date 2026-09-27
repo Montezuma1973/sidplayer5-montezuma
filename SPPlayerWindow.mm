@@ -1448,7 +1448,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         return;
     
     NSOpenPanel* openPanel = [NSOpenPanel openPanel];
-    openPanel.allowedFileTypes = @[@"sid", @"mod", @"xm", @"s3m", @"it"];
+    openPanel.allowedFileTypes = @[@"sid", @"mod", @"xm", @"s3m", @"it", @"mtm", @"ft1", @"ft", @"med", @"okt", @"stm", @"669", @"far", @"ult"];
     
     [openPanel beginSheetModalForWindow:self completionHandler:^(NSInteger result)
      {

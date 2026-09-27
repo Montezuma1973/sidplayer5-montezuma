@@ -92,6 +92,15 @@
 				<string>xm</string>
 				<string>s3m</string>
 				<string>it</string>
+				<string>mtm</string>
+				<string>ft1</string>
+				<string>ft</string>
+				<string>med</string>
+				<string>okt</string>
+				<string>stm</string>
+				<string>669</string>
+				<string>far</string>
+				<string>ult</string>
 			</array>
 			<key>CFBundleTypeName</key>
 			<string>Tracker Module</string>
