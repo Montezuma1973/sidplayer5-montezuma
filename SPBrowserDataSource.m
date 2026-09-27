@@ -43,38 +43,43 @@
 			NSRect r = [cell rectOfPathComponentCell:c withFrame:[self bounds] inView:self];
 			if (NSPointInRect(location, r))
 			{
-				if (c.URL != nil)
-					return c.URL;
-				if (i < self.pathItems.count && self.pathItems[i].URL != nil)
-					return self.pathItems[i].URL;
+				if (c.URL != nil) return c.URL;
+				if (i < self.pathItems.count && self.pathItems[i].URL != nil) return self.pathItems[i].URL;
 			}
 		}
 
-		// 3. Horizontal span match across cells (tolerates clicks with minor vertical offset)
+		// 3. Horizontal span match across cells
 		for (NSUInteger i = 0; i < [cells count]; i++)
 		{
 			NSPathComponentCell *c = cells[i];
 			NSRect r = [cell rectOfPathComponentCell:c withFrame:[self bounds] inView:self];
 			if (r.size.width > 0 && location.x >= NSMinX(r) && location.x <= NSMaxX(r))
 			{
-				if (c.URL != nil)
-					return c.URL;
-				if (i < self.pathItems.count && self.pathItems[i].URL != nil)
-					return self.pathItems[i].URL;
+				if (c.URL != nil) return c.URL;
+				if (i < self.pathItems.count && self.pathItems[i].URL != nil) return self.pathItems[i].URL;
 			}
 		}
 	}
 
-	// 4. Check subviews if AppKit uses modern view-based items
-	if (self.subviews.count > 0 && self.pathItems.count == self.subviews.count)
+	// 4. Check subviews (including nested container views)
+	NSMutableArray<NSView *> *candidateViews = [NSMutableArray array];
+	for (NSView *v in self.subviews)
 	{
-		for (NSUInteger i = 0; i < self.subviews.count; i++)
+		if ([v.subviews count] > 0)
+			[candidateViews addObjectsFromArray:v.subviews];
+		else
+			[candidateViews addObject:v];
+	}
+
+	for (NSUInteger i = 0; i < candidateViews.count; i++)
+	{
+		NSView *v = candidateViews[i];
+		NSRect r = [self convertRect:v.bounds fromView:v];
+		if (NSPointInRect(location, r) || (r.size.width > 0 && location.x >= NSMinX(r) && location.x <= NSMaxX(r)))
 		{
-			NSView *v = self.subviews[i];
-			if (NSPointInRect(location, v.frame) || (v.frame.size.width > 0 && location.x >= NSMinX(v.frame) && location.x <= NSMaxX(v.frame)))
+			if (i < self.pathItems.count && self.pathItems[i].URL != nil)
 			{
-				if (self.pathItems[i].URL != nil)
-					return self.pathItems[i].URL;
+				return self.pathItems[i].URL;
 			}
 		}
 	}
@@ -93,22 +98,20 @@
 	NSPoint location = [self convertPoint:[event locationInWindow] fromView:nil];
 	NSURL *clickedURL = [self urlAtPoint:location];
 
-	self.customClickedURL = clickedURL;
+	if (clickedURL != nil)
+	{
+		self.customClickedURL = clickedURL;
+		SEL act = [self action];
+		id tgt = [self target];
+		if (act != NULL)
+		{
+			[NSApp sendAction:act to:tgt from:self];
+		}
+		self.customClickedURL = nil;
+		return;
+	}
 
 	[super mouseDown:event];
-
-	// If super mouseDown: completed and customClickedURL is still present
-	// (meaning standard single-click did not trigger an action callback)
-	if (self.customClickedURL != nil)
-	{
-		NSURL *urlToNavigate = self.customClickedURL;
-		if (self.action != NULL && self.target != nil)
-		{
-			self.customClickedURL = urlToNavigate;
-			[NSApp sendAction:self.action to:self.target from:self];
-			self.customClickedURL = nil;
-		}
-	}
 }
 
 @end
@@ -754,14 +757,6 @@ NSDate* fillStart = nil;
 
 	NSString* stdPath = [path stringByStandardizingPath];
 	NSString* stdCurrent = [currentPath stringByStandardizingPath];
-	NSString* stdRoot = [rootPath stringByStandardizingPath];
-
-	// If inside a collection, do not navigate above the collection root
-	if (stdRoot != nil && stdCurrent != nil && [stdCurrent hasPrefix:stdRoot])
-	{
-		if ([[stdPath pathComponents] count] < [[stdRoot pathComponents] count])
-			return;
-	}
 
 	BOOL isDirectory = NO;
 	BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:stdPath isDirectory:&isDirectory];
