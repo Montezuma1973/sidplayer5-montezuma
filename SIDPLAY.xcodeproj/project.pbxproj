@@ -124,6 +124,8 @@
 		DA10945F2CE696C9001433DC /* PlayerLibSidplayWrapper.mm in Sources */ = {isa = PBXBuildFile; fileRef = DA10945D2CE696C9001433DC /* PlayerLibSidplayWrapper.mm */; };
 		DA1094622CE69776001433DC /* PlayerLibSidplayWrapper.h in Headers */ = {isa = PBXBuildFile; fileRef = DA1094612CE69776001433DC /* PlayerLibSidplayWrapper.h */; };
 		DA1094632CE69776001433DC /* PlayerLibSidplayWrapper.h in Headers */ = {isa = PBXBuildFile; fileRef = DA1094612CE69776001433DC /* PlayerLibSidplayWrapper.h */; };
+		DAA000032E696C90001433DC /* SPModPlayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = DAA000012E696C90001433DC /* SPModPlayer.mm */; };
+		DAA000042E696C90001433DC /* SPModPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000022E696C90001433DC /* SPModPlayer.h */; };
 		DA17E52A2A04F6C800419CB8 /* residfp-builder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A82A04F36000419CB8 /* residfp-builder.cpp */; };
 		DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A72A04F36000419CB8 /* residfp-emu.cpp */; };
 		DA17E52C2A04F6D500419CB8 /* OpAmp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3AB2A04F36000419CB8 /* OpAmp.cpp */; };
@@ -481,6 +483,8 @@
 		DA1094592CE66290001433DC /* PlaybackSettings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlaybackSettings.h; sourceTree = "<group>"; };
 		DA10945D2CE696C9001433DC /* PlayerLibSidplayWrapper.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PlayerLibSidplayWrapper.mm; sourceTree = "<group>"; };
 		DA1094612CE69776001433DC /* PlayerLibSidplayWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlayerLibSidplayWrapper.h; sourceTree = "<group>"; };
+		DAA000012E696C90001433DC /* SPModPlayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SPModPlayer.mm; sourceTree = "<group>"; };
+		DAA000022E696C90001433DC /* SPModPlayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPModPlayer.h; sourceTree = "<group>"; };
 		DA17E2EB2A04F36000419CB8 /* lightpen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lightpen.h; sourceTree = "<group>"; };
 		DA17E2EC2A04F36000419CB8 /* mos656x.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mos656x.h; sourceTree = "<group>"; };
 		DA17E2ED2A04F36000419CB8 /* mos656x.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mos656x.cpp; sourceTree = "<group>"; };
@@ -988,6 +992,8 @@
 			children = (
 				DA10945D2CE696C9001433DC /* PlayerLibSidplayWrapper.mm */,
 				DA1094612CE69776001433DC /* PlayerLibSidplayWrapper.h */,
+				DAA000012E696C90001433DC /* SPModPlayer.mm */,
+				DAA000022E696C90001433DC /* SPModPlayer.h */,
 				DA529CBC2F9C162D00FD8AC7 /* PlayerUsbWorker.m */,
 				DA529CC32F9E250400FD8AC7 /* USBDeviceWatcher.m */,
 				DA529CC72F9E250C00FD8AC7 /* USBDeviceWatcher.h */,
@@ -1956,6 +1962,7 @@
 				DA056ED82A177EF60096847B /* envelope.cc in Sources */,
 				DA17E53A2A04F70E00419CB8 /* Filter.cpp in Sources */,
 				DA10945E2CE696C9001433DC /* PlayerLibSidplayWrapper.mm in Sources */,
+				DAA000032E696C90001433DC /* SPModPlayer.mm in Sources */,
 				DA59B0C12A05224900233549 /* tod.cpp in Sources */,
 				DA17E54C2A04F79E00419CB8 /* prg.cpp in Sources */,
 				DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */,
@@ -2172,6 +2179,7 @@
 					"$(SRCROOT)/SIDBlaster",
 					"$(SRCROOT)/songlength",
 					"$(SRCROOT)",
+					"$(SRCROOT)/ThirdPartySources/libxmp/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SIDPlay;
@@ -2185,11 +2193,12 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/SIDBlaster",
+					"$(PROJECT_DIR)/ThirdPartySources/libxmp/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "";
 				MARKETING_VERSION = 5.1.0;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = "";
+				OTHER_LDFLAGS = "-lxmp";
 				PRODUCT_BUNDLE_IDENTIFIER = org.sidmusic.sidplay;
 				PRODUCT_NAME = SIDPLAY;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2256,6 +2265,7 @@
 					"$(SRCROOT)/SIDBlaster",
 					"$(SRCROOT)/songlength",
 					"$(SRCROOT)",
+					"$(SRCROOT)/ThirdPartySources/libxmp/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SIDPlay;
@@ -2269,6 +2279,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/SIDBlaster",
+					"$(PROJECT_DIR)/ThirdPartySources/libxmp/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "";
 				MARKETING_VERSION = 5.1.0;
@@ -2281,7 +2292,7 @@
 					"-ffast-math",
 					"-fno-exceptions",
 				);
-				OTHER_LDFLAGS = "";
+				OTHER_LDFLAGS = "-lxmp";
 				PRODUCT_BUNDLE_IDENTIFIER = org.sidmusic.sidplay;
 				PRODUCT_NAME = SIDPLAY;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2479,6 +2490,7 @@
 					"$(SRCROOT)/libsidplayfp/utils/MD5",
 					"$(SRCROOT)/libsidplayfp/utils/STILview",
 					"$(SRCROOT)/SIDBlaster",
+					"$(SRCROOT)/ThirdPartySources/libxmp/include",
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
@@ -2534,6 +2546,7 @@
 					"$(SRCROOT)/libsidplayfp/utils/MD5",
 					"$(SRCROOT)/libsidplayfp/utils/STILview",
 					"$(SRCROOT)/SIDBlaster",
+					"$(SRCROOT)/ThirdPartySources/libxmp/include",
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
@@ -2590,11 +2603,13 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/SIDBlaster",
+					"$(PROJECT_DIR)/ThirdPartySources/libxmp/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "";
 				MARKETING_VERSION = 5.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
+				OTHER_LDFLAGS = "-lxmp";
 				PRODUCT_BUNDLE_IDENTIFIER = org.sidmusic.sidplay.SIDTuneViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2642,12 +2657,14 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/SIDBlaster",
+					"$(PROJECT_DIR)/ThirdPartySources/libxmp/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "";
 				MARKETING_VERSION = 5.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = "-lxmp";
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(OTHER_CFLAGS)",
 					"-ffast-math",

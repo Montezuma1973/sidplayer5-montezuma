@@ -127,6 +127,8 @@ struct SidRegisterFrame
 - (int) getSIDModelFromTune;
 - (struct PlaybackSettings*) getCurrentPlaybackSettings;
 - (BOOL) isUsbDeviceActive;
+- (BOOL) isCurrentTuneMod;
+- (int) getTotalTime;
 - (BOOL) usbError;
 - (void)releaseUSBDevices;
 

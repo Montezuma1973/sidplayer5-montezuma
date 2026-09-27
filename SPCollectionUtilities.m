@@ -94,7 +94,8 @@ static SPCollectionUtilities* sharedInstance = nil;
         int randomFileIndex = random() % totalFiles;
         //NSLog(@"total sub folders: %d, totalFiles: %d, random: %d\n", totalSubFolders, totalFiles, randomFileIndex);
         NSString* randomFile = rootItems[randomFileIndex];
-        if ([randomFile.pathExtension caseInsensitiveCompare:@"sid"] == NSOrderedSame)
+        NSString* ext = randomFile.pathExtension.lowercaseString;
+        if ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] || [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"])
             return [root stringByAppendingPathComponent:randomFile];
     }
     
@@ -137,7 +138,8 @@ static SPCollectionUtilities* sharedInstance = nil;
     }
     else
     {
-        if (exists && ([path.pathExtension caseInsensitiveCompare:@"sid"] == NSOrderedSame) )
+        NSString* ext = path.pathExtension.lowercaseString;
+        if (exists && ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] || [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"]) )
             return path;
         else
             return [self pathOfRandomCollectionItemInPath:nil];

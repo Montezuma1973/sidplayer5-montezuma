@@ -638,8 +638,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [miniStatusDisplay setPlaybackSeconds:seconds];
     [browserDataSource updateCurrentSong:seconds];
 
-    // disable sidPopup menu in case of USB player
-    if ([player isUsbDeviceActive]) {
+    // disable sidPopup menu in case of USB player or MOD playback
+    if ([player isUsbDeviceActive] || [player isCurrentTuneMod]) {
         [sidPopup setEnabled:FALSE];
     } else
         [sidPopup setEnabled:TRUE];
@@ -847,7 +847,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     char* tuneBuffer = [player getTuneBuffer:&tuneLength];
     
     //char* tuneBuffer = NULL;
-    currentTuneLengthInSeconds = tuneBuffer == NULL ? 0 : [[SongLengthDatabase sharedInstance] getSongLengthFromBuffer:tuneBuffer withBufferLength:tuneLength andSubtune:currentSubtune];
+    if ([player isCurrentTuneMod]) {
+        currentTuneLengthInSeconds = [player getTotalTime];
+    } else {
+        currentTuneLengthInSeconds = tuneBuffer == NULL ? 0 : [[SongLengthDatabase sharedInstance] getSongLengthFromBuffer:tuneBuffer withBufferLength:tuneLength andSubtune:currentSubtune];
+    }
     
     [statusDisplay setTitle:title andAuthor:author andReleaseInfo:releaseInfo andSubtune:currentSubtune ofSubtunes:subtuneCount withSonglength:(int)currentTuneLengthInSeconds];
     [miniStatusDisplay setTitle:title andAuthor:author andReleaseInfo:releaseInfo andSubtune:currentSubtune ofSubtunes:subtuneCount withSonglength:(int)currentTuneLengthInSeconds];
@@ -1444,7 +1448,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         return;
     
     NSOpenPanel* openPanel = [NSOpenPanel openPanel];
-    openPanel.allowedFileTypes = @[@"sid"];
+    openPanel.allowedFileTypes = @[@"sid", @"mod", @"xm", @"s3m", @"it"];
     
     [openPanel beginSheetModalForWindow:self completionHandler:^(NSInteger result)
      {

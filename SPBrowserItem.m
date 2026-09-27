@@ -165,7 +165,8 @@
 		if (!exists)
 			continue;
 			
-		if (([file.pathExtension caseInsensitiveCompare:@"sid"] == NSOrderedSame) || folder)
+		NSString* ext = file.pathExtension.lowercaseString;
+		if ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [ext isEqualToString:@"xm"] || [ext isEqualToString:@"s3m"] || [ext isEqualToString:@"it"] || folder)
 		{
 			SPBrowserItem* item = [[SPBrowserItem alloc] initWithPath:path isFolder:folder forParent:parentItem withDefaultSubtune:0];
 			if (item != nil)
