@@ -849,8 +849,14 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     //char* tuneBuffer = NULL;
     if ([player isCurrentTuneMod]) {
         currentTuneLengthInSeconds = [player getTotalTime];
+        if (currentTuneLengthInSeconds <= 0) {
+            currentTuneLengthInSeconds = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
+        }
     } else {
         currentTuneLengthInSeconds = tuneBuffer == NULL ? 0 : [[SongLengthDatabase sharedInstance] getSongLengthFromBuffer:tuneBuffer withBufferLength:tuneLength andSubtune:currentSubtune];
+        if (currentTuneLengthInSeconds <= 0) {
+            currentTuneLengthInSeconds = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
+        }
     }
     
     [statusDisplay setTitle:title andAuthor:author andReleaseInfo:releaseInfo andSubtune:currentSubtune ofSubtunes:subtuneCount withSonglength:(int)currentTuneLengthInSeconds];
