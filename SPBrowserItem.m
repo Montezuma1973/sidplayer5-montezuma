@@ -70,14 +70,22 @@
 				{
 					NSString* modTitle = nil;
 					NSString* modFormat = nil;
-					if ([SPModPlayer getModInfoForPath:thePath title:&modTitle format:&modFormat])
+					int modSubtunes = 1;
+					int modLength = 0;
+					int targetSubtune = (subtuneIndex > 0) ? (int)subtuneIndex : 1;
+					if ([SPModPlayer getModInfoForPath:thePath
+					                             title:&modTitle
+					                            format:&modFormat
+					                          subtunes:&modSubtunes
+					                            length:&modLength
+					                        forSubtune:targetSubtune])
 					{
-						subTuneCount = 1;
-						defaultSubTune = 1;
+						subTuneCount = (modSubtunes > 0) ? (unsigned short)modSubtunes : 1;
+						defaultSubTune = (subtuneIndex > 0 && subtuneIndex <= subTuneCount) ? (unsigned short)subtuneIndex : 1;
 						title = modTitle ? modTitle : [thePath.lastPathComponent stringByDeletingPathExtension];
 						author = @"";
 						releaseInfo = modFormat ? modFormat : @"Tracker Module";
-						[self setPlayTimeInSeconds:0];
+						[self setPlayTimeInSeconds:modLength];
 						return self;
 					}
 					else
@@ -143,6 +151,10 @@
 		path = [item valueForAttribute:@"kMDItemPath"];
 		
 		int playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:path andSubtune:defaultSubTune];
+		if (playtime == 0 && [SPModPlayer isModFile:path])
+		{
+			playtime = [SPModPlayer getModLengthForPath:path andSubtune:(int)defaultSubTune];
+		}
 		[self setPlayTimeInSeconds:playtime];
 	}
 	

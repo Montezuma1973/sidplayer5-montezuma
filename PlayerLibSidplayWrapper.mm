@@ -564,10 +564,13 @@ static inline float approximate_dac(int x, float kinkiness)
         {
             mIsModActive = YES;
             mSidTune = nullptr;
-            mCurrentSubtune = [mModPlayer getCurrentSubtune];
             mSubtuneCount = [mModPlayer getSubtuneCount];
+            if (subtune > 0 && subtune <= mSubtuneCount) {
+                [mModPlayer startSubtune:subtune];
+            }
+            mCurrentSubtune = [mModPlayer getCurrentSubtune];
             mDefaultSubtune = 1;
-            mTuneLength = 0;
+            mTuneLength = [mModPlayer getTotalTimeSeconds];
             return YES;
         }
     }
@@ -608,10 +611,13 @@ static inline float approximate_dac(int x, float kinkiness)
         {
             mIsModActive = YES;
             mSidTune = nullptr;
-            mCurrentSubtune = [mModPlayer getCurrentSubtune];
             mSubtuneCount = [mModPlayer getSubtuneCount];
+            if (subtune > 0 && subtune <= mSubtuneCount) {
+                [mModPlayer startSubtune:subtune];
+            }
+            mCurrentSubtune = [mModPlayer getCurrentSubtune];
             mDefaultSubtune = 1;
-            mTuneLength = length;
+            mTuneLength = [mModPlayer getTotalTimeSeconds];
             return YES;
         }
     }

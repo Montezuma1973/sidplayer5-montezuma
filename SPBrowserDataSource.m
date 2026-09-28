@@ -2,6 +2,7 @@
 #import "SPBrowserItem.h"
 #import "SPPlayerWindow.h"
 #import "SongLengthDatabase.h"
+#import "SPModPlayer.h"
 #import "SPCollectionUtilities.h"
 #import "SPStilBrowserController.h"
 #import "SPSourceListDataSource.h"
@@ -2097,7 +2098,15 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 		if (defaultSubtune > 0 && defaultSubtune <= [browserItem subTuneCount] && playlist != nil)
 		{
 			[browserItem setDefaultSubTune:defaultSubtune];
-			int playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:[browserItem path] andSubtune:(int)defaultSubtune];
+			int playtime = 0;
+			if ([SPModPlayer isModFile:[browserItem path]])
+			{
+				playtime = [SPModPlayer getModLengthForPath:[browserItem path] andSubtune:(int)defaultSubtune];
+			}
+			else
+			{
+				playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:[browserItem path] andSubtune:(int)defaultSubtune];
+			}
 			[browserItem setPlayTimeInSeconds:playtime];
 
 			NSInteger playlistIndex = [browserItem playlistIndex];

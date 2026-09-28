@@ -73,7 +73,12 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     return (xmp_test_module_from_memory(data.bytes, (long)data.length, &ti) == 0);
 }
 
-+ (BOOL) getModInfoForPath:(NSString*)path title:(NSString**)outTitle format:(NSString**)outFormat
++ (BOOL) getModInfoForPath:(NSString*)path
+                     title:(NSString**)outTitle
+                    format:(NSString**)outFormat
+                  subtunes:(int*)outSubtunes
+                    length:(int*)outLength
+                forSubtune:(int)subtuneIndex
 {
     if (!path || path.length == 0)
         return NO;
@@ -82,31 +87,108 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     BOOL knownExt = IsKnownModExtension(ext);
     
     struct xmp_test_info ti;
-    if (xmp_test_module([path fileSystemRepresentation], &ti) == 0)
+    if (!knownExt && xmp_test_module([path fileSystemRepresentation], &ti) != 0)
     {
+        return NO;
+    }
+    
+    xmp_context ctx = xmp_create_context();
+    if (!ctx)
+    {
+        if (knownExt) {
+            if (outTitle) *outTitle = [[path lastPathComponent] stringByDeletingPathExtension];
+            if (outFormat) *outFormat = [ext uppercaseString];
+            if (outSubtunes) *outSubtunes = 1;
+            if (outLength) *outLength = 0;
+            return YES;
+        }
+        return NO;
+    }
+    
+    if (xmp_load_module(ctx, (char*)[path fileSystemRepresentation]) == 0)
+    {
+        struct xmp_module_info mi;
+        xmp_get_module_info(ctx, &mi);
+        
         if (outTitle) {
-            NSString* t = [NSString stringWithCString:ti.name encoding:NSISOLatin1StringEncoding];
-            if (!t || [t stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length == 0)
+            NSString* t = nil;
+            if (mi.mod && mi.mod->name[0] != '\0') {
+                t = [NSString stringWithCString:mi.mod->name encoding:NSISOLatin1StringEncoding];
+            }
+            if (!t || [t stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length == 0) {
                 t = [[path lastPathComponent] stringByDeletingPathExtension];
+            }
             *outTitle = t;
         }
+        
         if (outFormat) {
-            NSString* f = [NSString stringWithCString:ti.type encoding:NSISOLatin1StringEncoding];
-            if (!f || f.length == 0)
+            NSString* f = nil;
+            if (mi.mod && mi.mod->type[0] != '\0') {
+                f = [NSString stringWithCString:mi.mod->type encoding:NSISOLatin1StringEncoding];
+            }
+            if (!f || f.length == 0) {
                 f = [ext uppercaseString];
+            }
             *outFormat = f;
         }
+        
+        int numSeq = (mi.num_sequences > 0) ? mi.num_sequences : 1;
+        if (outSubtunes) {
+            *outSubtunes = numSeq;
+        }
+        
+        if (outLength) {
+            int durationMs = 0;
+            int targetSubtune = (subtuneIndex >= 1 && subtuneIndex <= numSeq) ? subtuneIndex : 1;
+            if (mi.seq_data != NULL && numSeq > 0) {
+                durationMs = mi.seq_data[targetSubtune - 1].duration;
+            }
+            
+            if (durationMs <= 0) {
+                if (xmp_start_player(ctx, 44100, 0) == 0) {
+                    if (targetSubtune > 1) {
+                        xmp_set_position(ctx, targetSubtune - 1);
+                    }
+                    struct xmp_frame_info fi;
+                    xmp_get_frame_info(ctx, &fi);
+                    durationMs = fi.total_time;
+                    xmp_end_player(ctx);
+                }
+            }
+            
+            *outLength = (durationMs + 500) / 1000;
+        }
+        
+        xmp_release_module(ctx);
+        xmp_free_context(ctx);
         return YES;
     }
-    else if (knownExt)
-    {
-        if (outTitle)
-            *outTitle = [[path lastPathComponent] stringByDeletingPathExtension];
-        if (outFormat)
-            *outFormat = [ext uppercaseString];
+    
+    xmp_free_context(ctx);
+    
+    if (knownExt) {
+        if (outTitle) *outTitle = [[path lastPathComponent] stringByDeletingPathExtension];
+        if (outFormat) *outFormat = [ext uppercaseString];
+        if (outSubtunes) *outSubtunes = 1;
+        if (outLength) *outLength = 0;
         return YES;
     }
+    
     return NO;
+}
+
++ (BOOL) getModInfoForPath:(NSString*)path title:(NSString**)outTitle format:(NSString**)outFormat
+{
+    return [self getModInfoForPath:path title:outTitle format:outFormat subtunes:NULL length:NULL forSubtune:1];
+}
+
++ (int) getModLengthForPath:(NSString*)path andSubtune:(int)subtuneIndex
+{
+    int length = 0;
+    if ([self getModInfoForPath:path title:NULL format:NULL subtunes:NULL length:&length forSubtune:subtuneIndex]) {
+        return length;
+    }
+    return 0;
 }
 
 - (instancetype) init
@@ -341,6 +423,14 @@ static inline BOOL IsKnownModExtension(NSString* ext)
         return NO;
     mCurrentSubtune = which;
     xmp_set_position(mCtx, which - 1);
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    mTotalTimeMs = fi.total_time;
+    struct xmp_module_info mi;
+    xmp_get_module_info(mCtx, &mi);
+    if (mTotalTimeMs <= 0 && mi.seq_data != NULL && which <= mi.num_sequences) {
+        mTotalTimeMs = mi.seq_data[which - 1].duration;
+    }
     mCurrentTimeMs = 0;
     return YES;
 }

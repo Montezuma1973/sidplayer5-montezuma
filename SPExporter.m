@@ -5,6 +5,7 @@
 #import "SongLengthDatabase.h"
 #import "SPCollectionUtilities.h"
 #import "SPPreferencesController.h"
+#import "SPModPlayer.h"
 
 #include "TargetConditionals.h"
 #include <lame/lame.h>
@@ -104,6 +105,8 @@ static AudioFileTypeID exportAudioFileIDs[NUM_EXPORT_TYPES] =
 		return NO;
 
     exportSettings.mTimeInSeconds = [[SongLengthDatabase sharedInstance] getSongLengthByPath:path andSubtune:subtune];
+    if (exportSettings.mTimeInSeconds == 0 && [SPModPlayer isModFile:path])
+        exportSettings.mTimeInSeconds = [SPModPlayer getModLengthForPath:path andSubtune:subtune];
     if (exportSettings.mTimeInSeconds == 0)
         exportSettings.mTimeInSeconds = gPreferences.mDefaultPlayTime;
 	if ([exportItem loopCount] > 0)
