@@ -4,6 +4,7 @@
 #import "SPPlaylist.h"
 #import "SPPlaylistItem.h"
 #import "SPModPlayer.h"
+#import "SPPreferencesController.h"
 
 
 @implementation SPBrowserItem
@@ -32,6 +33,7 @@
 		
 		if (folder)
 		{
+			itemType = SP_ITEM_TYPE_FOLDER;
 			title = path.lastPathComponent;
 			author = @"";
 			releaseInfo = @"";
@@ -80,11 +82,16 @@
 					                            length:&modLength
 					                        forSubtune:targetSubtune])
 					{
+						itemType = SP_ITEM_TYPE_AMIGA_MOD;
 						subTuneCount = (modSubtunes > 0) ? (unsigned short)modSubtunes : 1;
 						defaultSubTune = (subtuneIndex > 0 && subtuneIndex <= subTuneCount) ? (unsigned short)subtuneIndex : 1;
 						title = modTitle ? modTitle : [thePath.lastPathComponent stringByDeletingPathExtension];
 						author = @"";
 						releaseInfo = modFormat ? modFormat : @"Tracker Module";
+						if (modLength <= 0)
+						{
+							modLength = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
+						}
 						[self setPlayTimeInSeconds:modLength];
 						return self;
 					}
@@ -94,6 +101,7 @@
 					}
 				}
 
+				itemType = SP_ITEM_TYPE_C64;
 				subTuneCount = *(unsigned short*)(filebuffer + 0x0e);
 				defaultSubTune = *(unsigned short*)(filebuffer + 0x10);
 
@@ -122,6 +130,14 @@
 				releaseInfo = [NSString stringWithCString:releasedBuf encoding:NSISOLatin1StringEncoding];
 				
 				int playtime = (int)[[SongLengthDatabase sharedInstance] getSongLengthFromBuffer:filebuffer withBufferLength: (int)length andSubtune:defaultSubTune];
+				if (playtime <= 0)
+				{
+					playtime = (int)[[SongLengthDatabase sharedInstance] getSongLengthByPath:thePath andSubtune:(int)defaultSubTune];
+				}
+				if (playtime <= 0)
+				{
+					playtime = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
+				}
 				[self setPlayTimeInSeconds:playtime];
 			}
 		}
@@ -150,10 +166,20 @@
 		subTuneCount = [[item valueForAttribute:@"org_sidmusic_SubtuneCount"] integerValue]; 
 		path = [item valueForAttribute:@"kMDItemPath"];
 		
-		int playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:path andSubtune:defaultSubTune];
-		if (playtime == 0 && [SPModPlayer isModFile:path])
+		int playtime = 0;
+		if ([SPModPlayer isModFile:path])
 		{
+			itemType = SP_ITEM_TYPE_AMIGA_MOD;
 			playtime = [SPModPlayer getModLengthForPath:path andSubtune:(int)defaultSubTune];
+		}
+		else
+		{
+			itemType = SP_ITEM_TYPE_C64;
+			playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:path andSubtune:(int)defaultSubTune];
+		}
+		if (playtime <= 0)
+		{
+			playtime = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
 		}
 		[self setPlayTimeInSeconds:playtime];
 	}
@@ -475,6 +501,22 @@
 // ----------------------------------------------------------------------------
 {
 	return fileDoesNotExist;
+}
+
+
+// ----------------------------------------------------------------------------
+- (SPItemType) itemType
+// ----------------------------------------------------------------------------
+{
+	return itemType;
+}
+
+
+// ----------------------------------------------------------------------------
+- (void) setItemType:(SPItemType)type
+// ----------------------------------------------------------------------------
+{
+	itemType = type;
 }
 
 

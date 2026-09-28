@@ -2062,7 +2062,26 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 		if ([browserItem isFolder])
 			return @"";
 		else
+		{
+			int totalSec = [browserItem playTimeInSeconds];
+			if (totalSec <= 0)
+			{
+				if ([browserItem itemType] == SP_ITEM_TYPE_AMIGA_MOD || [SPModPlayer isModFile:[browserItem path]])
+				{
+					totalSec = [SPModPlayer getModLengthForPath:[browserItem path] andSubtune:[browserItem defaultSubTune]];
+				}
+				else
+				{
+					totalSec = [[SongLengthDatabase sharedInstance] getSongLengthByPath:[browserItem path] andSubtune:[browserItem defaultSubTune]];
+				}
+				if (totalSec <= 0)
+				{
+					totalSec = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
+				}
+				[browserItem setPlayTimeInSeconds:totalSec];
+			}
 			return [NSString stringWithFormat:@"%d:%02d", [browserItem playTimeMinutes], [browserItem playTimeSeconds]];
+		}
 	}
 	else if([[tableColumn identifier] isEqual:@"repeat"])
     {

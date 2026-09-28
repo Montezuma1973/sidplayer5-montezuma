@@ -2,9 +2,17 @@
 
 @class SPPlaylist;
 
+typedef NS_ENUM(NSInteger, SPItemType) {
+	SP_ITEM_TYPE_UNKNOWN = 0,
+	SP_ITEM_TYPE_FOLDER = 1,
+	SP_ITEM_TYPE_C64 = 2,
+	SP_ITEM_TYPE_AMIGA_MOD = 3
+};
+
 @interface SPBrowserItem : NSObject
 {
 	BOOL isFolder;
+	SPItemType itemType;
 
 	NSString* title;
 	NSString* author;
@@ -35,6 +43,7 @@
 + (void) fillArray:(NSMutableArray*)browserItems withPlaylist:(SPPlaylist*)playlist;
 
 @property (NS_NONATOMIC_IOSONLY) BOOL isFolder;
+@property (NS_NONATOMIC_IOSONLY) SPItemType itemType;
 
 @property (NS_NONATOMIC_IOSONLY, copy) NSString *title;
 

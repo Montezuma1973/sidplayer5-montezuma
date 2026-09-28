@@ -1,6 +1,7 @@
 #import "SongLengthDatabase.h"
 #import "SidTuneWrapper.h"
 #import "SPPlayerWindow.h"
+#import "SPPreferencesController.h"
 
 #include "SongLength.h"
 #include "Item.h"
@@ -11,11 +12,27 @@ static NSString* SidplaySongLengthDataBaseRelativePathNewMD5 = @"DOCUMENTS/Songl
 static SongLengthDatabase* sharedInstance = nil;
 
 @implementation SongLengthDatabase
+@synthesize databaseAvailable;
 
 // ----------------------------------------------------------------------------
 + (SongLengthDatabase*) sharedInstance
 // ----------------------------------------------------------------------------
 {
+	if (sharedInstance == nil || ![sharedInstance databaseAvailable])
+	{
+		if (gPreferences && gPreferences.mCollections)
+		{
+			for (NSString* colPath in gPreferences.mCollections)
+			{
+				SongLengthDatabase* db = [[SongLengthDatabase alloc] initWithRootPath:colPath];
+				if (db != nil && [db databaseAvailable])
+				{
+					sharedInstance = db;
+					break;
+				}
+			}
+		}
+	}
 	return sharedInstance;
 }
 
@@ -24,7 +41,10 @@ static SongLengthDatabase* sharedInstance = nil;
 + (void) setSharedInstance:(SongLengthDatabase*)database;
 // ----------------------------------------------------------------------------
 {
-	sharedInstance = database;
+	if (database != nil && [database databaseAvailable])
+	{
+		sharedInstance = database;
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -49,31 +69,67 @@ static SongLengthDatabase* sharedInstance = nil;
 	if (self != nil)
 	{
 		databaseAvailable = NO;
-		collectionRootPath = rootPath;	
-        bool success;
-		if (rootPath == nil)
+		newMD5FormatUsed = NO;
+		if (rootPath == nil || rootPath.length == 0)
 			return nil;
-        newMD5FormatUsed = NO;
-        // check for new MD5 DB
-        databasePath = [rootPath stringByAppendingPathComponent:SidplaySongLengthDataBaseRelativePathNewMD5];
-        //NSLog(@"databasePath: %@\n", databasePath);
-        newMD5db = [[NewMD5SongLengthDatabase alloc] initWithPath:databasePath];
-        success = [newMD5db validDatabase];
-        if (success) {
-            newMD5FormatUsed = YES;
-            databaseAvailable = YES;
-            return self;
-        } else {
-            // failed, check for old DB
-            databasePath = [rootPath stringByAppendingPathComponent:SidplaySongLengthDataBaseRelativePath];
-            //NSLog(@"databasePath: %@\n", databasePath);
-            
-            songLength =  [[SongLength alloc] initWithFile:[databasePath cStringUsingEncoding:NSUTF8StringEncoding]];
-            if ([songLength isAvailable]) {
-                databaseAvailable = YES;
-                return self;
-            }
-        }
+
+		// 1. Check rootPath and walk up parent directories (up to 6 levels)
+		NSString* searchDir = rootPath;
+		for (int level = 0; level < 6; level++)
+		{
+			NSString* md5Path = [searchDir stringByAppendingPathComponent:SidplaySongLengthDataBaseRelativePathNewMD5];
+			if ([[NSFileManager defaultManager] fileExistsAtPath:md5Path])
+			{
+				newMD5db = [[NewMD5SongLengthDatabase alloc] initWithPath:md5Path];
+				if ([newMD5db validDatabase])
+				{
+					databasePath = md5Path;
+					collectionRootPath = searchDir;
+					newMD5FormatUsed = YES;
+					databaseAvailable = YES;
+					return self;
+				}
+			}
+			
+			NSString* txtPath = [searchDir stringByAppendingPathComponent:SidplaySongLengthDataBaseRelativePath];
+			if ([[NSFileManager defaultManager] fileExistsAtPath:txtPath])
+			{
+				songLength = [[SongLength alloc] initWithFile:[txtPath cStringUsingEncoding:NSUTF8StringEncoding]];
+				if ([songLength isAvailable])
+				{
+					databasePath = txtPath;
+					collectionRootPath = searchDir;
+					databaseAvailable = YES;
+					return self;
+				}
+			}
+			
+			NSString* parentDir = [searchDir stringByDeletingLastPathComponent];
+			if ([parentDir isEqualToString:searchDir] || parentDir.length == 0)
+				break;
+			searchDir = parentDir;
+		}
+
+		// 2. Fallback: check all collections in gPreferences.mCollections
+		if (gPreferences && gPreferences.mCollections)
+		{
+			for (NSString* colPath in gPreferences.mCollections)
+			{
+				NSString* md5Path = [colPath stringByAppendingPathComponent:SidplaySongLengthDataBaseRelativePathNewMD5];
+				if ([[NSFileManager defaultManager] fileExistsAtPath:md5Path])
+				{
+					newMD5db = [[NewMD5SongLengthDatabase alloc] initWithPath:md5Path];
+					if ([newMD5db validDatabase])
+					{
+						databasePath = md5Path;
+						collectionRootPath = colPath;
+						newMD5FormatUsed = YES;
+						databaseAvailable = YES;
+						return self;
+					}
+				}
+			}
+		}
 	}
     return nil;
 }

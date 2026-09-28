@@ -23,6 +23,7 @@
 - (int) getSongLengthFromBuffer:(void*)buffer withBufferLength:(int)length andSubtune:(int)subtune;
 - (int) getSongLengthFromSidTune:(SidTuneWrapper*)sidtune andSubtune:(int)subtune;
 
+@property (readonly) BOOL databaseAvailable;
 @property (NS_NONATOMIC_IOSONLY, readonly, copy) NSString *databasePath;
 
 @end
