@@ -66,6 +66,16 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString*) channelNoteForVoice:(int)voice;
 - (NSString*) channelInstrumentForVoice:(int)voice;
 - (int) channelPeriodForVoice:(int)voice;
+- (int) currentPattern;
+- (int) currentRow;
+- (int) numRowsInCurrentPattern;
+- (int) currentOrder;
+- (int) currentBPM;
+- (int) currentSpeed;
+- (int) channelMidiNoteForVoice:(int)voice;
+- (int) channelVolumeForVoice:(int)voice;
+- (NSString*) channelEffectForVoice:(int)voice;
+- (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx;
 
 - (void) fillSidRegisterFrame:(struct SidRegisterFrame*)frame;
 

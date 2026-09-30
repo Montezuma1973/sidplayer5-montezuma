@@ -605,6 +605,124 @@ static const char* sModNoteNames[12] = {
     return fi.channel_info[voice].period;
 }
 
+- (int) currentPattern
+{
+    if (!mCtx || !mIsLoaded) return 0;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.pattern;
+}
+
+- (int) currentRow
+{
+    if (!mCtx || !mIsLoaded) return 0;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.row;
+}
+
+- (int) numRowsInCurrentPattern
+{
+    if (!mCtx || !mIsLoaded) return 64;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.num_rows > 0 ? fi.num_rows : 64;
+}
+
+- (int) currentOrder
+{
+    if (!mCtx || !mIsLoaded) return 0;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.pos;
+}
+
+- (int) currentBPM
+{
+    if (!mCtx || !mIsLoaded) return 125;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.bpm > 0 ? fi.bpm : 125;
+}
+
+- (int) currentSpeed
+{
+    if (!mCtx || !mIsLoaded) return 6;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.speed > 0 ? fi.speed : 6;
+}
+
+- (int) channelMidiNoteForVoice:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels || !mCtx || !mIsLoaded || !mIsPlaying) return -1;
+    if (mVoiceMuted[voice]) return -1;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    int note = fi.channel_info[voice].note; // 1..120
+    int vol = fi.channel_info[voice].volume;
+    if (note <= 0 || vol <= 0) return -1;
+    return 23 + note; // 1 -> 24 (C-1)
+}
+
+- (int) channelVolumeForVoice:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels || !mCtx || !mIsLoaded) return 0;
+    if (mVoiceMuted[voice]) return 0;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.channel_info[voice].volume;
+}
+
+- (NSString*) channelEffectForVoice:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels || !mCtx || !mIsLoaded) return @"...";
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    unsigned char fxt = fi.channel_info[voice].event.fxt;
+    unsigned char fxp = fi.channel_info[voice].event.fxp;
+    if (fxt == 0 && fxp == 0) return @"...";
+    return [NSString stringWithFormat:@"%X%02X", fxt, fxp];
+}
+
+- (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx
+{
+    *outNote = @"---";
+    *outIns = @"..";
+    *outVol = @"..";
+    *outFx = @"...";
+
+    if (ch < 0 || ch >= mNumChannels || !mCtx || !mIsLoaded) return;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    struct xmp_module_info mi;
+    xmp_get_module_info(mCtx, &mi);
+
+    if (!mi.mod || fi.pattern < 0 || fi.pattern >= mi.mod->pat) return;
+    struct xmp_pattern *pat = mi.mod->xxp[fi.pattern];
+    if (!pat || ch >= mi.mod->chn) return;
+    int trackIdx = pat->index[ch];
+    if (trackIdx < 0 || trackIdx >= mi.mod->trk) return;
+    struct xmp_track *track = mi.mod->xxt[trackIdx];
+    if (!track || row < 0 || row >= track->rows) return;
+
+    struct xmp_event ev = track->event[row];
+    if (ev.note > 0 && ev.note <= 120) {
+        int semitone = (ev.note - 1) % 12;
+        int octave = (ev.note - 1) / 12 + 1;
+        *outNote = [NSString stringWithFormat:@"%s%d", sModNoteNames[semitone], octave];
+    }
+    if (ev.ins > 0) {
+        *outIns = [NSString stringWithFormat:@"%02X", ev.ins];
+    }
+    if (ev.vol > 0) {
+        *outVol = [NSString stringWithFormat:@"%02d", ev.vol];
+    }
+    if (ev.fxt != 0 || ev.fxp != 0) {
+        *outFx = [NSString stringWithFormat:@"%X%02X", ev.fxt, ev.fxp];
+    }
+}
+
 - (void) setVoiceVolume:(float)volume forVoice:(int)voice
 {
     if (voice < 0 || voice >= kMaxModChannels) return;

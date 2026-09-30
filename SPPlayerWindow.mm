@@ -432,6 +432,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [remixKwedOrgController setOwnerWindow:self];
 	if (voiceNotesView != nil)
 		[voiceNotesView setOwnerWindow:self];
+	if (spectrumView != nil)
+		[spectrumView setOwnerWindow:self];
     
     if (gPreferences.mInfoWindowVisible)
     {
@@ -1359,6 +1361,82 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 	if (player == NULL)
 		return 0;
 	return [player channelPeriodForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerPattern
+{
+	if (player == NULL) return 0;
+	return [player currentPattern];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerRow
+{
+	if (player == NULL) return 0;
+	return [player currentRow];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerNumRows
+{
+	if (player == NULL) return 64;
+	return [player numRowsInCurrentPattern];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerOrder
+{
+	if (player == NULL) return 0;
+	return [player currentOrder];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerBPM
+{
+	if (player == NULL) return 125;
+	return [player currentBPM];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerSpeed
+{
+	if (player == NULL) return 6;
+	return [player currentSpeed];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerMidiNoteForVoice:(int)voice
+{
+	if (player == NULL) return -1;
+	return [player channelMidiNoteForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (int) trackerVolumeForVoice:(int)voice
+{
+	if (player == NULL) return 0;
+	return [player channelVolumeForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (NSString*) trackerEffectForVoice:(int)voice
+{
+	if (player == NULL) return @"...";
+	return [player channelEffectForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx
+{
+	if (player == NULL) {
+		*outNote = @"---";
+		*outIns = @"..";
+		*outVol = @"..";
+		*outFx = @"...";
+		return;
+	}
+	[player getTrackerCellForChannel:ch row:row note:outNote ins:outIns vol:outVol fx:outFx];
 }
 
 // ----------------------------------------------------------------------------
