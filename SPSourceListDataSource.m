@@ -11,6 +11,7 @@
 #import "SPSmartPlaylist.h"
 #import "SPPlayerWindow.h"
 #import "SPBrowserItem.h"
+#import "SPThemeManager.h"
 
 
 @implementation SPSourceListDataSource
@@ -1313,16 +1314,32 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 {
 	if (item != nil && cell != nil)
 	{
+		SPThemeManager *tm = [SPThemeManager sharedManager];
 		SPSourceListItem* selectedItem = [outlineView itemAtRow:outlineView.selectedRow];
-		if(selectedItem == item || currentCollection == item)
+		BOOL isSelected = (selectedItem == item || currentCollection == item);
+
+		NSMutableDictionary* attrs = [[[(SPSourceListItem*)item name] attributesAtIndex:0 effectiveRange:NULL] mutableCopy];
+		if (!attrs) attrs = [NSMutableDictionary dictionary];
+
+		if (isSelected)
 		{
-			NSMutableDictionary* attrs = [[[(SPSourceListItem*)item name] attributesAtIndex:0 effectiveRange:NULL] mutableCopy];
 			attrs[NSFontAttributeName] = [NSFont boldSystemFontOfSize:12.0f];
-			NSAttributedString* name = [[NSAttributedString alloc] initWithString:[(SPSourceListItem*)item name].string  attributes:attrs];
-			[cell setAttributedStringValue:name];
+			if (tm.currentTheme != SPAppThemeSystem) {
+				attrs[NSForegroundColorAttributeName] = [tm sourceListSelectionTextColor];
+			}
 		}
 		else
-			[cell setAttributedStringValue:[(SPSourceListItem*)item name]];
+		{
+			if (tm.currentTheme != SPAppThemeSystem) {
+				if ([(SPSourceListItem*)item isHeader]) {
+					attrs[NSForegroundColorAttributeName] = [tm sourceListHeaderColor];
+				} else {
+					attrs[NSForegroundColorAttributeName] = [tm sourceListTextColor];
+				}
+			}
+		}
+		NSAttributedString* name = [[NSAttributedString alloc] initWithString:[(SPSourceListItem*)item name].string  attributes:attrs];
+		[cell setAttributedStringValue:name];
 
 		[cell setImage:[item icon]];
 		[cell setLineBreakMode:NSLineBreakByTruncatingTail];
@@ -1330,18 +1347,24 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 
 		if ([item isHeader])
 		{
-			SPSourceListView* view = (SPSourceListView*) outlineView;
-			if ([view isActive])
-				[cell setTextColor:[NSColor labelColor]];
-            //                 [cell setTextColor:[NSColor colorWithDeviceRed:0.376f green:0.431f blue:0.502f alpha:1.0f]];
-			else
-				[cell setTextColor:[NSColor secondaryLabelColor]];
-            //                [cell setTextColor:[NSColor colorWithDeviceRed:0.376f green:0.376f blue:0.376f alpha:1.0f]];
+			if (tm.currentTheme != SPAppThemeSystem) {
+				[cell setTextColor:[tm sourceListHeaderColor]];
+			} else {
+				SPSourceListView* view = (SPSourceListView*) outlineView;
+				if ([view isActive])
+					[cell setTextColor:[NSColor labelColor]];
+				else
+					[cell setTextColor:[NSColor secondaryLabelColor]];
+			}
 		}
 		else
-			[cell setTextColor:[NSColor textColor]];
-            //        [cell setTextColor:[NSColor blackColor]];
-
+		{
+			if (tm.currentTheme != SPAppThemeSystem) {
+				[cell setTextColor:isSelected ? [tm sourceListSelectionTextColor] : [tm sourceListTextColor]];
+			} else {
+				[cell setTextColor:[NSColor textColor]];
+			}
+		}
 	}
 }
 
@@ -1534,6 +1557,52 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 }
 
 // NSTableView
+
+// ----------------------------------------------------------------------------
+- (void) drawBackgroundInClipRect:(NSRect)clipRect
+// ----------------------------------------------------------------------------
+{
+	SPThemeManager *tm = [SPThemeManager sharedManager];
+	if (tm.currentTheme == SPAppThemeSystem) {
+		[super drawBackgroundInClipRect:clipRect];
+	} else {
+		[[tm sourceListBackgroundColor] setFill];
+		NSRectFill(clipRect);
+	}
+}
+
+
+// ----------------------------------------------------------------------------
+- (void) highlightSelectionInClipRect:(NSRect)clipRect
+// ----------------------------------------------------------------------------
+{
+	SPThemeManager *tm = [SPThemeManager sharedManager];
+	if (tm.currentTheme == SPAppThemeSystem) {
+		[super highlightSelectionInClipRect:clipRect];
+	} else {
+		NSIndexSet *selectedRows = [self selectedRowIndexes];
+		NSColor *selColor = [tm sourceListSelectionColor];
+		[selColor setFill];
+		
+		[selectedRows enumerateIndexesUsingBlock:^(NSUInteger row, BOOL *stop) {
+			NSRect rowRect = [self rectOfRow:row];
+			if (NSIntersectsRect(rowRect, clipRect)) {
+				if (tm.currentTheme == SPAppThemeWorkbench31) {
+					NSRectFill(rowRect);
+				} else if (tm.currentTheme == SPAppThemeWorkbench13) {
+					NSRectFill(rowRect);
+					[[NSColor blackColor] setStroke];
+					NSFrameRect(rowRect);
+					[selColor setFill];
+				} else {
+					NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rowRect, 2.0f, 1.0f) xRadius:3.0f yRadius:3.0f];
+					[path fill];
+				}
+			}
+		}];
+	}
+}
+
 
 // ----------------------------------------------------------------------------
 - (void) awakeFromNib
