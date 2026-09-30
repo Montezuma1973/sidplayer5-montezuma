@@ -803,7 +803,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         static const int kSpectrumSampleCount = 1024;
         short samples[kSpectrumSampleCount];
         int sampleRate = audioDriver->getSampleRate();
-        if (audioDriver->getIsPlaying())
+        BOOL isPlaying = audioDriver->getIsPlaying();
+        if (isPlaying)
         {
             int copied = audioDriver->copySpectrumSamples(samples, kSpectrumSampleCount);
             if (copied > 0)
@@ -814,6 +815,22 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             memset(samples, 0, sizeof(samples));
             [spectrumView updateWithSamples:samples count:kSpectrumSampleCount sampleRate:sampleRate];
         }
+
+        BOOL isMod = (player != nil) ? [player isCurrentTuneMod] : NO;
+        NSTimeInterval playTime = (player != nil) ? (NSTimeInterval)[player getPlaybackSeconds] : 0;
+        NSTimeInterval totalTime = (player != nil) ? (NSTimeInterval)[player getTotalTime] : 0;
+        NSString *title = nil;
+        if (player != nil && [player hasTuneInformationStrings]) {
+            const char *rawTitle = [player getCurrentTitle];
+            if (rawTitle && strlen(rawTitle) > 0) {
+                title = [NSString stringWithUTF8String:rawTitle];
+            }
+        }
+        [spectrumView updatePlaybackState:isPlaying
+                                    isMod:isMod
+                                 playTime:playTime
+                                totalTime:totalTime
+                                tuneTitle:title];
     }
 }
 
