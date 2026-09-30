@@ -58,6 +58,14 @@ NS_ASSUME_NONNULL_BEGIN
 - (void) setVoiceMuted:(BOOL)muted forVoice:(int)voice;
 - (void) toggleVoiceMuted:(int)voice;
 - (void) setVoiceVolume:(float)volume forVoice:(int)voice;
+- (int) numChannels;
+- (BOOL) isVoiceSoloed:(int)voice;
+- (void) toggleVoiceSoloed:(int)voice;
+- (void) unmuteAllVoices;
+- (float) voiceVUPeakForVoice:(int)voice;
+- (NSString*) channelNoteForVoice:(int)voice;
+- (NSString*) channelInstrumentForVoice:(int)voice;
+- (int) channelPeriodForVoice:(int)voice;
 
 - (void) fillSidRegisterFrame:(struct SidRegisterFrame*)frame;
 

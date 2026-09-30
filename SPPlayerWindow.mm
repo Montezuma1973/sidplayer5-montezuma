@@ -58,11 +58,13 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 
 @implementation SPVoiceNotesView
 {
-	NSMutableArray<NSString*>* noteHistory;
-	NSString* currentTriplet;
+	NSMutableArray<NSArray<NSString*>*>* noteHistory;
 	NSDictionary* textAttributes;
 	__weak SPPlayerWindow* ownerWindow;
-	NSRect muteHitRects[3];
+	NSRect muteHitRects[8];
+	NSRect soloHitRects[8];
+	NSRect unmuteAllHitRect;
+	NSString* lastNoteSignature;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
@@ -71,10 +73,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 	if (self)
 	{
 		noteHistory = [NSMutableArray arrayWithCapacity:10];
-		currentTriplet = nil;
-		NSFont* font = [NSFont fontWithName:@"Menlo" size:11.0f];
+		lastNoteSignature = nil;
+		NSFont* font = [NSFont fontWithName:@"Menlo" size:10.0f];
 		if (!font)
-			font = [NSFont systemFontOfSize:11.0f];
+			font = [NSFont monospacedSystemFontOfSize:10.0f weight:NSFontWeightMedium];
 		textAttributes = @{NSFontAttributeName: font,
 						   NSForegroundColorAttributeName: [NSColor labelColor]};
 	}
@@ -95,6 +97,9 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 {
 	[super drawRect:dirtyRect];
 
+	NSRect bounds = self.bounds;
+	if (bounds.size.width <= 0 || bounds.size.height <= 0) return;
+
 	SPThemeManager *tm = [SPThemeManager sharedManager];
 	if (tm.currentTheme == SPAppThemeSystem) {
 		[[NSColor controlBackgroundColor] setFill];
@@ -103,95 +108,275 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 	}
 	NSRectFill(dirtyRect);
 
-	CGFloat x = 8.0f;
-	CGFloat y = 6.0f;
-	CGFloat lineHeight = 13.0f;
-	const CGFloat nowWidth = 50.0f;
-	const CGFloat voiceWidth = 120.0f;
-	const CGFloat colGap = 12.0f;
-	CGFloat colNowX = x;
-	CGFloat colV1X = colNowX + nowWidth + colGap;
-	CGFloat colV2X = colV1X + voiceWidth + colGap;
-	CGFloat colV3X = colV2X + voiceWidth + colGap;
+	// Subtle top separator line
+	NSColor *topBorderColor = [tm boxBorderColor] ?: [NSColor colorWithCalibratedWhite:0.5 alpha:0.25f];
+	[topBorderColor setFill];
+	NSRectFill(NSMakeRect(0, 0, bounds.size.width, 1.0f));
 
-	NSColor* textColor = (tm.currentTheme == SPAppThemeSystem) ? [NSColor labelColor] : [tm browserTextColor];
-	NSFont* font = textAttributes[NSFontAttributeName];
-	NSDictionary* activeAttrs = @{NSFontAttributeName: font, NSForegroundColorAttributeName: textColor};
+	NSColor* primaryColor = (tm.currentTheme == SPAppThemeSystem) ? [NSColor labelColor] : [tm browserTextColor];
+	NSColor* secColor = (tm.currentTheme == SPAppThemeSystem) ? [NSColor secondaryLabelColor] : [tm browserSecondaryTextColor];
+	NSColor* accentColor = [tm accentColor] ?: [NSColor controlAccentColor];
 
-	NSString* headerV1 = @"Voice 1";
-	NSString* headerV2 = @"Voice 2";
-	NSString* headerV3 = @"Voice 3";
-	NSString* muteLabel = @"Mute";
-	[headerV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:activeAttrs];
-	[headerV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:activeAttrs];
-	[headerV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:activeAttrs];
-	for (int i = 0; i < 3; i++)
-	{
-		BOOL muted = ownerWindow ? [ownerWindow isVoiceMuted:i] : NO;
-		NSColor* muteColor = muted ? [NSColor systemRedColor] : ((tm.currentTheme == SPAppThemeSystem) ? [NSColor secondaryLabelColor] : [tm browserSecondaryTextColor]);
-		NSDictionary* muteAttributes = @{NSFontAttributeName: font,
-										 NSForegroundColorAttributeName: muteColor};
-		NSSize muteSize = [muteLabel sizeWithAttributes:muteAttributes];
-		NSString* header = (i == 0) ? headerV1 : (i == 1) ? headerV2 : headerV3;
-		NSSize headerSize = [header sizeWithAttributes:activeAttrs];
-		CGFloat colX = (i == 0) ? colV1X : (i == 1) ? colV2X : colV3X;
-		CGFloat muteX = colX + headerSize.width + 8.0f;
-		[muteLabel drawAtPoint:CGPointMake(muteX, y) withAttributes:muteAttributes];
-		muteHitRects[i] = NSMakeRect(muteX - 2.0f, y - 1.0f, muteSize.width + 4.0f, lineHeight);
-	}
-	y += lineHeight;
+	NSFont* titleFont = [NSFont boldSystemFontOfSize:10.0f];
+	NSFont* headerFont = [NSFont boldSystemFontOfSize:9.0f];
+	NSFont* monoFont = [NSFont fontWithName:@"Menlo-Bold" size:10.5f] ?: [NSFont monospacedSystemFontOfSize:10.5f weight:NSFontWeightBold];
+	NSFont* smallMono = [NSFont fontWithName:@"Menlo" size:8.5f] ?: [NSFont monospacedSystemFontOfSize:8.5f weight:NSFontWeightRegular];
+	NSFont* buttonFont = [NSFont boldSystemFontOfSize:8.5f];
 
-	NSString* nowV1 = @"--";
-	NSString* nowV2 = @"--";
-	NSString* nowV3 = @"--";
-	if (currentTriplet)
-	{
-		NSArray<NSString*>* parts = [currentTriplet componentsSeparatedByString:@"  "];
-		for (NSString* part in parts)
-		{
-			if ([part hasPrefix:@"V1: "]) nowV1 = [part substringFromIndex:4];
-			else if ([part hasPrefix:@"V2: "]) nowV2 = [part substringFromIndex:4];
-			else if ([part hasPrefix:@"V3: "]) nowV3 = [part substringFromIndex:4];
+	int numChannels = ownerWindow ? [ownerWindow activeChannelCount] : 3;
+	if (numChannels < 1) numChannels = 1;
+	if (numChannels > 8) numChannels = 8;
+
+	// 1. Header Bar (y: 3px to 21px)
+	NSDictionary* titleAttrs = @{NSFontAttributeName: titleFont, NSForegroundColorAttributeName: primaryColor};
+	[@"VOICE & CHANNEL MATRIX" drawAtPoint:NSMakePoint(10.0f, 4.0f) withAttributes:titleAttrs];
+
+	// Hardware Chip silicon badge in center:
+	NSString* chipStr = @"MOS 6581 • 3 VOICES";
+	if (ownerWindow && [ownerWindow player]) {
+		if ([[ownerWindow player] isCurrentTuneMod]) {
+			chipStr = [NSString stringWithFormat:@"PAULA 8364 • %d CHANNELS", numChannels];
+		} else if ([[ownerWindow player] getSidChips] > 1) {
+			chipStr = [NSString stringWithFormat:@"2x SID (MOS %s) • 6 VOICES", [[ownerWindow player] getCurrentChipModel]];
+		} else {
+			chipStr = [NSString stringWithFormat:@"MOS %s • 3 VOICES", [[ownerWindow player] getCurrentChipModel]];
 		}
 	}
-	[@"" drawAtPoint:CGPointMake(colNowX, y) withAttributes:activeAttrs];
-	[nowV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:activeAttrs];
-	[nowV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:activeAttrs];
-	[nowV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:activeAttrs];
-	y += lineHeight;
+	NSDictionary* chipAttrs = @{NSFontAttributeName: headerFont, NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.92f alpha:1.0f]};
+	NSSize chipTextSize = [chipStr sizeWithAttributes:chipAttrs];
+	CGFloat chipWidth = chipTextSize.width + 24.0f;
+	CGFloat chipX = (bounds.size.width - chipWidth) * 0.5f;
+	NSRect chipRect = NSMakeRect(chipX, 3.0f, chipWidth, 18.0f);
+	NSBezierPath* chipPath = [NSBezierPath bezierPathWithRoundedRect:chipRect xRadius:3.0f yRadius:3.0f];
+	[[NSColor colorWithDeviceRed:0.12f green:0.13f blue:0.16f alpha:0.92f] setFill];
+	[chipPath fill];
+	[[NSColor colorWithDeviceRed:0.40f green:0.42f blue:0.48f alpha:0.6f] setStroke];
+	[chipPath stroke];
 
-	for (NSUInteger i = 0; i < noteHistory.count; i++)
+	// LED on chip badge
+	NSColor* ledColor = [chipStr containsString:@"PAULA"] ? [NSColor colorWithDeviceRed:1.0f green:0.65f blue:0.0f alpha:1.0f] : [NSColor colorWithDeviceRed:0.2f green:0.9f blue:0.4f alpha:1.0f];
+	[ledColor setFill];
+	NSRect ledRect = NSMakeRect(chipX + 6.0f, 8.0f, 6.0f, 6.0f);
+	[[NSBezierPath bezierPathWithOvalInRect:ledRect] fill];
+	[chipStr drawAtPoint:NSMakePoint(chipX + 16.0f, 5.0f) withAttributes:chipAttrs];
+
+	// Right: Unmute All Button
+	unmuteAllHitRect = NSMakeRect(bounds.size.width - 105.0f, 3.0f, 96.0f, 18.0f);
+	NSBezierPath* unmutePath = [NSBezierPath bezierPathWithRoundedRect:unmuteAllHitRect xRadius:3.0f yRadius:3.0f];
+	[[NSColor colorWithCalibratedWhite:0.18f alpha:0.8f] setFill];
+	[unmutePath fill];
+	[[NSColor colorWithCalibratedWhite:0.5f alpha:0.3f] setStroke];
+	[unmutePath stroke];
+	NSMutableParagraphStyle* centerStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
+	centerStyle.alignment = NSTextAlignmentCenter;
+	NSDictionary* unmuteAttrs = @{NSFontAttributeName: buttonFont,
+								  NSForegroundColorAttributeName: primaryColor,
+								  NSParagraphStyleAttributeName: centerStyle};
+	[@"UNMUTE ALL" drawInRect:NSMakeRect(unmuteAllHitRect.origin.x, 5.0f, unmuteAllHitRect.size.width, 14.0f) withAttributes:unmuteAttrs];
+
+	// 2. Channel Matrix Cards (y: 25px, height: 68px)
+	CGFloat margin = 8.0f;
+	CGFloat gap = 5.0f;
+	CGFloat availWidth = bounds.size.width - (margin * 2.0f);
+	CGFloat cardWidth = (availWidth - ((numChannels - 1) * gap)) / (CGFloat)numChannels;
+	if (cardWidth < 60.0f) cardWidth = 60.0f;
+
+	for (int i = 0; i < numChannels; i++)
 	{
-		NSString* triplet = noteHistory[i];
-		NSString* v1 = @"--";
-		NSString* v2 = @"--";
-		NSString* v3 = @"--";
-		NSArray<NSString*>* parts = [triplet componentsSeparatedByString:@"  "];
-		for (NSString* part in parts)
-		{
-			if ([part hasPrefix:@"V1: "]) v1 = [part substringFromIndex:4];
-			else if ([part hasPrefix:@"V2: "]) v2 = [part substringFromIndex:4];
-			else if ([part hasPrefix:@"V3: "]) v3 = [part substringFromIndex:4];
+		CGFloat cardX = margin + i * (cardWidth + gap);
+		NSRect cardRect = NSMakeRect(cardX, 25.0f, cardWidth, 68.0f);
+
+		// Card background
+		NSBezierPath* cardPath = [NSBezierPath bezierPathWithRoundedRect:cardRect xRadius:4.0f yRadius:4.0f];
+		[[NSColor colorWithCalibratedWhite:0.0f alpha:0.22f] setFill];
+		[cardPath fill];
+		[[NSColor colorWithCalibratedWhite:1.0f alpha:0.10f] setStroke];
+		[cardPath setLineWidth:1.0f];
+		[cardPath stroke];
+
+		BOOL isMuted = ownerWindow ? [ownerWindow isVoiceMuted:i] : NO;
+		BOOL isSoloed = ownerWindow ? [ownerWindow isVoiceSoloed:i] : NO;
+		float vuLevel = ownerWindow ? [ownerWindow voiceVUPeakForVoice:i] : 0.0f;
+		if (isMuted) vuLevel = 0.0f;
+		if (vuLevel > 1.0f) vuLevel = 1.0f;
+
+		// Channel Title:
+		NSString* chName = nil;
+		if (ownerWindow && [[ownerWindow player] isCurrentTuneMod]) {
+			const char* panStr = (i % 4 == 0 || i % 4 == 3) ? "L" : "R";
+			chName = [NSString stringWithFormat:@"CH %d (%s)", i + 1, panStr];
+		} else if (numChannels > 3) {
+			int sidNum = (i < 3) ? 1 : 2;
+			int vNum = (i % 3) + 1;
+			chName = [NSString stringWithFormat:@"S%d-V%d", sidNum, vNum];
+		} else {
+			chName = [NSString stringWithFormat:@"VOICE %d", i + 1];
 		}
 
-		NSString* rowLabel = [NSString stringWithFormat:@"%2lu", (unsigned long)(i + 1)];
-		[rowLabel drawAtPoint:CGPointMake(colNowX, y) withAttributes:activeAttrs];
-		[v1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:activeAttrs];
-		[v2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:activeAttrs];
-		[v3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:activeAttrs];
-		y += lineHeight;
+		NSDictionary* chNameAttrs = @{NSFontAttributeName: headerFont,
+									  NSForegroundColorAttributeName: isMuted ? [NSColor colorWithCalibratedRed:0.9f green:0.3f blue:0.3f alpha:1.0f] : (isSoloed ? [NSColor colorWithCalibratedRed:1.0f green:0.75f blue:0.2f alpha:1.0f] : accentColor)};
+		[chName drawAtPoint:NSMakePoint(cardX + 6.0f, 28.0f) withAttributes:chNameAttrs];
+
+		// Active Note Readout:
+		NSString* noteStr = ownerWindow ? [ownerWindow channelNoteForVoice:i] : @"--";
+		NSColor* noteColor = isMuted ? [NSColor disabledControlTextColor] : ([noteStr isEqualToString:@"--"] ? secColor : [NSColor colorWithCalibratedRed:0.20f green:0.85f blue:1.0f alpha:1.0f]);
+		NSDictionary* noteAttrs = @{NSFontAttributeName: monoFont, NSForegroundColorAttributeName: noteColor};
+		[noteStr drawAtPoint:NSMakePoint(cardX + cardWidth - 36.0f, 27.0f) withAttributes:noteAttrs];
+
+		// Instrument / Waveform / Period:
+		NSString* insStr = ownerWindow ? [ownerWindow channelInstrumentForVoice:i] : @"--";
+		int period = ownerWindow ? [ownerWindow channelPeriodForVoice:i] : 0;
+		NSString* subInfo = (period > 0) ? [NSString stringWithFormat:@"%@ • %d", insStr, period] : insStr;
+		NSDictionary* subAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: secColor};
+		[subInfo drawAtPoint:NSMakePoint(cardX + 6.0f, 43.0f) withAttributes:subAttrs];
+
+		// Interactive [ MUTE ] Button:
+		CGFloat btnY = 58.0f;
+		CGFloat btnH = 17.0f;
+		CGFloat muteBtnW = 28.0f;
+		CGFloat soloBtnW = 26.0f;
+		muteHitRects[i] = NSMakeRect(cardX + 5.0f, btnY, muteBtnW, btnH);
+		soloHitRects[i] = NSMakeRect(cardX + 35.0f, btnY, soloBtnW, btnH);
+
+		NSBezierPath* muteBtnPath = [NSBezierPath bezierPathWithRoundedRect:muteHitRects[i] xRadius:3.0f yRadius:3.0f];
+		if (isMuted) {
+			[[NSColor colorWithCalibratedRed:0.85f green:0.18f blue:0.18f alpha:0.95f] setFill];
+			[muteBtnPath fill];
+			[[NSColor colorWithCalibratedRed:1.0f green:0.4f blue:0.4f alpha:0.8f] setStroke];
+			[muteBtnPath stroke];
+		} else {
+			[[NSColor colorWithCalibratedWhite:0.15f alpha:0.75f] setFill];
+			[muteBtnPath fill];
+			[[NSColor colorWithCalibratedWhite:0.5f alpha:0.25f] setStroke];
+			[muteBtnPath stroke];
+		}
+		NSDictionary* muteTextAttrs = @{NSFontAttributeName: buttonFont,
+										NSForegroundColorAttributeName: isMuted ? [NSColor whiteColor] : secColor,
+										NSParagraphStyleAttributeName: centerStyle};
+		[@"M" drawInRect:NSMakeRect(muteHitRects[i].origin.x, btnY + 2.0f, muteBtnW, btnH) withAttributes:muteTextAttrs];
+
+		// Interactive [ SOLO ] Button:
+		NSBezierPath* soloBtnPath = [NSBezierPath bezierPathWithRoundedRect:soloHitRects[i] xRadius:3.0f yRadius:3.0f];
+		if (isSoloed) {
+			[[NSColor colorWithCalibratedRed:0.95f green:0.65f blue:0.0f alpha:0.95f] setFill];
+			[soloBtnPath fill];
+			[[NSColor colorWithCalibratedRed:1.0f green:0.85f blue:0.2f alpha:0.8f] setStroke];
+			[soloBtnPath stroke];
+		} else {
+			[[NSColor colorWithCalibratedWhite:0.15f alpha:0.75f] setFill];
+			[soloBtnPath fill];
+			[[NSColor colorWithCalibratedWhite:0.5f alpha:0.25f] setStroke];
+			[soloBtnPath stroke];
+		}
+		NSDictionary* soloTextAttrs = @{NSFontAttributeName: buttonFont,
+										NSForegroundColorAttributeName: isSoloed ? [NSColor blackColor] : secColor,
+										NSParagraphStyleAttributeName: centerStyle};
+		[@"S" drawInRect:NSMakeRect(soloHitRects[i].origin.x, btnY + 2.0f, soloBtnW, btnH) withAttributes:soloTextAttrs];
+
+		// Segmented LED VU Meter Bar:
+		CGFloat vuX = cardX + 64.0f;
+		CGFloat vuW = cardWidth - 69.0f;
+		if (vuW > 14.0f) {
+			int numSegments = (int)(vuW / 5.5f);
+			if (numSegments < 4) numSegments = 4;
+			if (numSegments > 10) numSegments = 10;
+			CGFloat segSpacing = 1.0f;
+			CGFloat segW = (vuW - (numSegments - 1) * segSpacing) / (CGFloat)numSegments;
+
+			for (int s = 0; s < numSegments; s++) {
+				CGFloat sx = vuX + s * (segW + segSpacing);
+				NSRect segRect = NSMakeRect(sx, btnY + 3.0f, segW, 11.0f);
+				float threshold = (float)(s + 1) / (float)numSegments;
+				BOOL lit = (vuLevel >= threshold);
+
+				NSColor* segBaseColor;
+				if (s < numSegments - 3) {
+					segBaseColor = [NSColor colorWithCalibratedRed:0.15f green:0.85f blue:0.35f alpha:1.0f]; // Green
+				} else if (s < numSegments - 1) {
+					segBaseColor = [NSColor colorWithCalibratedRed:1.0f green:0.65f blue:0.0f alpha:1.0f];  // Amber
+				} else {
+					segBaseColor = [NSColor colorWithCalibratedRed:1.0f green:0.20f blue:0.20f alpha:1.0f];  // Red
+				}
+
+				if (lit) {
+					[segBaseColor setFill];
+					NSRectFill(segRect);
+				} else {
+					[[segBaseColor colorWithAlphaComponent:0.15f] setFill];
+					NSRectFill(segRect);
+				}
+			}
+		}
+	}
+
+	// 3. Bottom Polyphonic Tracker Pattern Roll (y: 97px to bottom)
+	CGFloat trayY = 97.0f;
+	CGFloat trayH = bounds.size.height - trayY - 4.0f;
+	if (trayH > 20.0f) {
+		NSRect trayRect = NSMakeRect(margin, trayY, availWidth, trayH);
+		NSBezierPath* trayPath = [NSBezierPath bezierPathWithRoundedRect:trayRect xRadius:3.0f yRadius:3.0f];
+		[[NSColor colorWithCalibratedWhite:0.0f alpha:0.25f] setFill];
+		[trayPath fill];
+		[[NSColor colorWithCalibratedWhite:1.0f alpha:0.06f] setStroke];
+		[trayPath stroke];
+
+		// Draw channel column lines in tray
+		for (int i = 1; i < numChannels; i++) {
+			CGFloat divX = margin + i * (cardWidth + gap) - (gap * 0.5f);
+			[[NSColor colorWithCalibratedWhite:1.0f alpha:0.06f] setFill];
+			NSRectFill(NSMakeRect(divX, trayY, 1.0f, trayH));
+		}
+
+		// Draw scrolling pattern history rows
+		CGFloat rowH = 12.0f;
+		int maxRows = (int)(trayH / rowH);
+		if (maxRows > 4) maxRows = 4;
+
+		for (int r = 0; r < maxRows && r < (int)noteHistory.count; r++) {
+			CGFloat ry = trayY + 2.0f + r * rowH;
+			NSArray<NSString*>* rowNotes = noteHistory[r];
+			float rowAlpha = 1.0f - ((float)r * 0.22f);
+			if (rowAlpha < 0.25f) rowAlpha = 0.25f;
+
+			for (int ch = 0; ch < numChannels && ch < (int)rowNotes.count; ch++) {
+				CGFloat chX = margin + ch * (cardWidth + gap) + 6.0f;
+				NSString* n = rowNotes[ch];
+				NSColor* c = [n isEqualToString:@"--"] ? [secColor colorWithAlphaComponent:rowAlpha * 0.6f] : [primaryColor colorWithAlphaComponent:rowAlpha];
+				NSDictionary* histAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: c};
+				[n drawAtPoint:NSMakePoint(chX, ry) withAttributes:histAttrs];
+			}
+		}
 	}
 }
 
 - (void) mouseDown:(NSEvent*)event
 {
 	NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
-	for (int i = 0; i < 3; i++)
+
+	if (NSPointInRect(point, unmuteAllHitRect))
+	{
+		if (ownerWindow) [ownerWindow unmuteAllVoices];
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	int numChannels = ownerWindow ? [ownerWindow activeChannelCount] : 3;
+	if (numChannels > 8) numChannels = 8;
+
+	for (int i = 0; i < numChannels; i++)
 	{
 		if (NSPointInRect(point, muteHitRects[i]))
 		{
 			if (ownerWindow)
 				[ownerWindow toggleVoiceMute:i];
+			[self setNeedsDisplay:YES];
+			return;
+		}
+		if (NSPointInRect(point, soloHitRects[i]))
+		{
+			if (ownerWindow)
+				[ownerWindow toggleVoiceSolo:i];
+			[self setNeedsDisplay:YES];
 			return;
 		}
 	}
@@ -200,47 +385,38 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 
 - (void) updateWithRegisters:(const uint8_t*)registers
 {
-	if (!registers)
+	if (!ownerWindow)
 		return;
 
-	NSString* notes[3];
-	NSString* instruments[3];
-	for (int i = 0; i < 3; i++)
-	{
-		int registerOffset = i * 7;
-		uint16_t frequency = registers[registerOffset] + (registers[registerOffset + 1] << 8);
-		uint8_t control = registers[registerOffset + 4];
-		BOOL gateOn = (control & 0x01) ? YES : NO;
-		const char* noteString = gateOn ? SPSidNoteStringForFrequency(frequency) : "--";
-		if (!noteString || noteString[0] == '\0')
-			noteString = "--";
-		notes[i] = [NSString stringWithUTF8String:noteString];
-		instruments[i] = gateOn ? SPInstrumentStringForControl(control) : @"--";
+	int numChannels = [ownerWindow activeChannelCount];
+	if (numChannels < 1) numChannels = 1;
+	if (numChannels > 8) numChannels = 8;
+
+	NSMutableArray<NSString*>* currentNotes = [NSMutableArray arrayWithCapacity:numChannels];
+	NSMutableString* sig = [NSMutableString string];
+	for (int i = 0; i < numChannels; i++) {
+		NSString* n = [ownerWindow channelNoteForVoice:i] ?: @"--";
+		NSString* ins = [ownerWindow channelInstrumentForVoice:i] ?: @"--";
+		NSString* cell = [NSString stringWithFormat:@"%@ %@", n, ins];
+		[currentNotes addObject:cell];
+		[sig appendFormat:@"%@|", cell];
 	}
 
-	NSString* triplet = [NSString stringWithFormat:@"V1: %@ %@  V2: %@ %@  V3: %@ %@",
-						 notes[0], instruments[0],
-						 notes[1], instruments[1],
-						 notes[2], instruments[2]];
-
-	if (currentTriplet && [currentTriplet isEqualToString:triplet])
-		return;
-
-	if (currentTriplet)
-	{
-		[noteHistory insertObject:currentTriplet atIndex:0];
-		if (noteHistory.count > 10)
+	if (!lastNoteSignature || ![lastNoteSignature isEqualToString:sig]) {
+		lastNoteSignature = sig;
+		[noteHistory insertObject:currentNotes atIndex:0];
+		if (noteHistory.count > 10) {
 			[noteHistory removeLastObject];
+		}
 	}
 
-	currentTriplet = triplet;
 	[self setNeedsDisplay:YES];
 }
 
 - (void) clearNotes
 {
 	[noteHistory removeAllObjects];
-	currentTriplet = nil;
+	lastNoteSignature = nil;
 	[self setNeedsDisplay:YES];
 }
 
@@ -628,6 +804,42 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             id resp = [self firstResponder];
             if (![resp isKindOfClass:[NSText class]]) {
                 [self cycleThemeFromMenu:self];
+                return;
+            }
+            [super keyDown:event];
+            break;
+        }
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        {
+            id resp = [self firstResponder];
+            if (![resp isKindOfClass:[NSText class]]) {
+                int ch = (int)(character - '1');
+                if (ch < [self activeChannelCount]) {
+                    if ((event.modifierFlags & NSEventModifierFlagOption) || (event.modifierFlags & NSEventModifierFlagShift)) {
+                        [self toggleVoiceSolo:ch];
+                    } else {
+                        [self toggleVoiceMute:ch];
+                    }
+                    return;
+                }
+            }
+            [super keyDown:event];
+            break;
+        }
+        case '0':
+        case 'u':
+        case 'U':
+        {
+            id resp = [self firstResponder];
+            if (![resp isKindOfClass:[NSText class]]) {
+                [self unmuteAllVoices];
                 return;
             }
             [super keyDown:event];
@@ -1037,6 +1249,14 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 }
 
 // ----------------------------------------------------------------------------
+- (int) activeChannelCount
+{
+	if (player == NULL)
+		return 3;
+	return [player activeChannelCount];
+}
+
+// ----------------------------------------------------------------------------
 - (BOOL) isVoiceMuted:(int)voice
 {
 	if (player == NULL)
@@ -1061,6 +1281,84 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 
 	if (voiceNotesView != nil)
 		[voiceNotesView setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
+- (BOOL) isVoiceSoloed:(int)voice
+{
+	if (player == NULL)
+		return NO;
+	return [player isVoiceSoloed:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (void) toggleVoiceSolo:(int)voice
+{
+	if (player == NULL)
+		return;
+
+	[player toggleVoiceSoloed:voice];
+
+	if (infoWindowController != nil)
+	{
+		SPMixerView* mixerView = [[infoWindowController containerView] mixerView];
+		if (mixerView != nil)
+			[mixerView syncVoiceControlsFromPlayer];
+	}
+
+	if (voiceNotesView != nil)
+		[voiceNotesView setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
+- (void) unmuteAllVoices
+{
+	if (player == NULL)
+		return;
+
+	[player unmuteAllVoices];
+
+	if (infoWindowController != nil)
+	{
+		SPMixerView* mixerView = [[infoWindowController containerView] mixerView];
+		if (mixerView != nil)
+			[mixerView syncVoiceControlsFromPlayer];
+	}
+
+	if (voiceNotesView != nil)
+		[voiceNotesView setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
+- (float) voiceVUPeakForVoice:(int)voice
+{
+	if (player == NULL)
+		return 0.0f;
+	return [player voiceVUPeakForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (NSString*) channelNoteForVoice:(int)voice
+{
+	if (player == NULL)
+		return @"--";
+	return [player channelNoteForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (NSString*) channelInstrumentForVoice:(int)voice
+{
+	if (player == NULL)
+		return @"--";
+	return [player channelInstrumentForVoice:voice];
+}
+
+// ----------------------------------------------------------------------------
+- (int) channelPeriodForVoice:(int)voice
+{
+	if (player == NULL)
+		return 0;
+	return [player channelPeriodForVoice:voice];
 }
 
 // ----------------------------------------------------------------------------
