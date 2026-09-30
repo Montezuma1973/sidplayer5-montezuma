@@ -24,11 +24,13 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
     - *C64 Cyan / Deep Blue* (classic VIC-II monitor vibe)
   - [x] Quick toggle via right-click menu, double-click, or `C` key (profile cycle with `P` key).
 
-- [ ] **1.2 Retro Hardware Silicon Badges**
-  - [ ] Illuminated silicon chip badges in the status toolbar indicating active audio hardware:
-    - `[ MOS 6581 ]` / `[ MOS 8580 ]` for Commodore 64 SID tunes.
-    - `[ PAULA 8364 ]` / `[ 4-CH 8-BIT ]` for Amiga tracker modules.
-  - [ ] Clickable chip badge to open the SID model selector or channel inspector.
+- [x] **1.2 Retro Hardware Silicon Badges**
+  - [x] Illuminated silicon chip badges in the status toolbar indicating active audio hardware:
+    - `[ MOS 6581 ]` / `[ MOS 8580 ]` / `[ 2x SID ]` for Commodore 64 SID tunes (with emerald green & electric cyan LEDs).
+    - `[ PAULA 8364 ]` for Amiga tracker modules (with warm amber LED).
+  - [x] Clickable chip badge in the status bar to directly open the SID model selector popover or Amiga hardware specifications.
+  - [x] Integrated silicon DIP-chip badges rendered directly across all retro visualizers (Boing Ball, Datasette Cassette, 1541 Floppy, and Spectrum Bars).
+  - [x] Dynamic tooltips and status update on the bottom toolbar chip button.
 
 - [ ] **1.3 Authentic System Color Themes**
   - [ ] Commodore 64 Classic theme (Deep blue `#40318d` / Light blue `#887ecb` borders and PETSCII accents).

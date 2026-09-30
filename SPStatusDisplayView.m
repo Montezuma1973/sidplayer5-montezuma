@@ -278,6 +278,15 @@
 	[self setNeedsDisplay:YES];
 }
 
+// ----------------------------------------------------------------------------
+- (void) setChipBadge:(NSString*)chipName isMod:(BOOL)isMod
+// ----------------------------------------------------------------------------
+{
+	chipBadge = [chipName copy];
+	isModTune = isMod;
+	[self setNeedsDisplay:YES];
+}
+
 
 // ----------------------------------------------------------------------------
 - (void) loadResources
@@ -464,7 +473,7 @@
 		}
 	}
 	
-	const float rightDisplayWidth = 100.0f;
+	const float rightDisplayWidth = (chipBadge != nil && [chipBadge length] > 0) ? 180.0f : 100.0f;
 	
 	// Draw the title/author/release info
 	NSRect tuneInfoFrame;
@@ -474,6 +483,68 @@
 		tuneInfoFrame.size.width = rect.size.width - rightDisplayWidth;
 		
 		[tuneInfo drawInRect:tuneInfoFrame];
+	}
+	
+	// Draw the illuminated hardware silicon chip badge
+	if (chipBadge != nil && [chipBadge length] > 0)
+	{
+		chipBadgeFrame = NSMakeRect(rect.origin.x + rect.size.width - 165.0f, ypos + 1.0f, 88.0f, 17.0f);
+		
+		// 1. Ceramic DIP package body
+		NSBezierPath *badgePath = [NSBezierPath bezierPathWithRoundedRect:chipBadgeFrame xRadius:3.0f yRadius:3.0f];
+		[[NSColor colorWithDeviceRed:0.12f green:0.13f blue:0.16f alpha:mouseDownInChipBadge ? 0.98f : 0.88f] setFill];
+		[badgePath fill];
+		
+		// Metallic bevel border
+		[[NSColor colorWithDeviceRed:0.38f green:0.40f blue:0.46f alpha:0.75f] setStroke];
+		[badgePath setLineWidth:1.0f];
+		[badgePath stroke];
+		
+		// 2. Silver DIP dual-inline pins on top and bottom
+		[[NSColor colorWithDeviceRed:0.75f green:0.77f blue:0.82f alpha:0.85f] setFill];
+		for (int p = 0; p < 5; p++) {
+			CGFloat pinX = chipBadgeFrame.origin.x + 16.0f + (CGFloat)p * 14.0f;
+			NSRectFill(NSMakeRect(pinX, chipBadgeFrame.origin.y - 1.0f, 4.0f, 1.5f));
+			NSRectFill(NSMakeRect(pinX, chipBadgeFrame.origin.y + chipBadgeFrame.size.height - 0.5f, 4.0f, 1.5f));
+		}
+		
+		// 3. Chip pin-1 notch on left edge
+		NSBezierPath *notch = [NSBezierPath bezierPath];
+		[notch appendBezierPathWithArcWithCenter:NSMakePoint(chipBadgeFrame.origin.x, chipBadgeFrame.origin.y + 8.5f)
+		                                 radius:2.5f
+		                             startAngle:-90.0
+		                               endAngle:90.0];
+		[[NSColor colorWithDeviceRed:0.25f green:0.27f blue:0.30f alpha:1.0f] setFill];
+		[notch fill];
+		
+		// 4. Status Illuminated LED dot
+		NSRect ledRect = NSMakeRect(chipBadgeFrame.origin.x + 6.0f, chipBadgeFrame.origin.y + 6.0f, 5.0f, 5.0f);
+		NSColor *ledColor = nil;
+		if (isModTune) {
+			ledColor = [NSColor colorWithDeviceRed:1.0f green:0.62f blue:0.10f alpha:1.0f]; // Amber for Paula
+		} else if ([chipBadge containsString:@"8580"]) {
+			ledColor = [NSColor colorWithDeviceRed:0.10f green:0.85f blue:1.0f alpha:1.0f]; // Electric Cyan for 8580
+		} else {
+			ledColor = [NSColor colorWithDeviceRed:0.20f green:0.95f blue:0.35f alpha:1.0f]; // Emerald Green for 6581
+		}
+		
+		NSGraphicsContext *ctx = [NSGraphicsContext currentContext];
+		[ctx saveGraphicsState];
+		NSShadow *ledGlow = [[NSShadow alloc] init];
+		ledGlow.shadowColor = ledColor;
+		ledGlow.shadowBlurRadius = 4.0f;
+		ledGlow.shadowOffset = NSMakeSize(0, 0);
+		[ledGlow set];
+		[ledColor setFill];
+		[[NSBezierPath bezierPathWithOvalInRect:ledRect] fill];
+		[ctx restoreGraphicsState];
+		
+		// 5. Laser-etched metallic chip text
+		NSDictionary *badgeFontAttr = @{
+			NSFontAttributeName: [NSFont boldSystemFontOfSize:8.5f],
+			NSForegroundColorAttributeName: [NSColor colorWithDeviceRed:0.92f green:0.94f blue:0.98f alpha:1.0f]
+		};
+		[chipBadge drawAtPoint:NSMakePoint(chipBadgeFrame.origin.x + 14.5f, chipBadgeFrame.origin.y + 2.5f) withAttributes:badgeFontAttr];
 	}
 	
 	// Draw the subtune information
@@ -587,6 +658,12 @@
 		[self setPlaybackSeconds:-1];
 		return;
 	}
+	else if (displayVisible && chipBadge != nil && NSPointInRect(mousePositionInView, chipBadgeFrame))
+	{
+		mouseDownInChipBadge = YES;
+		[self setNeedsDisplay:YES];
+		return;
+	}
 	else
 	{
 		if (!inStartState)
@@ -605,6 +682,7 @@
 		
 		mouseDownInLeftArrow = NO;
 		mouseDownInRightArrow = NO;
+		mouseDownInChipBadge = NO;
 		return;
 	}
 	// Code will never be executed
@@ -631,10 +709,26 @@
 		[self setNeedsDisplay:YES];
 		[(SPPlayerWindow*)self.window nextSubtune:self];
 	}
+	else if (displayVisible && chipBadge != nil && NSPointInRect(mousePositionInView, chipBadgeFrame) && mouseDownInChipBadge)
+	{
+		mouseDownInChipBadge = NO;
+		[self setNeedsDisplay:YES];
+		if (!isModTune) {
+			if ([self.window respondsToSelector:@selector(SIDSelectorButtonPressed:)]) {
+				[(SPPlayerWindow*)self.window SIDSelectorButtonPressed:self];
+			}
+		} else {
+			NSAlert *alert = [[NSAlert alloc] init];
+			alert.messageText = @"Commodore Amiga Sound Hardware";
+			alert.informativeText = @"Audio Chip: MOS / CSG 8364 'Paula'\n• 4 hardware DMA sound channels (stereo left/right)\n• 8-bit linear pulse-code modulation (PCM)\n• Variable sampling rates up to 28.8 kHz (PAL) / 28.9 kHz (NTSC)\n• Native Amiga ProTracker / FastTracker / OctaMED hardware output";
+			[alert runModal];
+		}
+	}
 	else
 	{
 		mouseDownInLeftArrow = NO;
 		mouseDownInRightArrow = NO;
+		mouseDownInChipBadge = NO;
 		[self setNeedsDisplay:YES];
 	}
 }

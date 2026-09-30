@@ -58,6 +58,10 @@
 	NSMutableAttributedString* subtuneInfo;
 
 	SPQCView* logoView;
+	NSString* chipBadge;
+	BOOL isModTune;
+	NSRect chipBadgeFrame;
+	BOOL mouseDownInChipBadge;
 }
 
 - (void) loadResources;
@@ -67,6 +71,7 @@
 @property (NS_NONATOMIC_IOSONLY, readonly, strong) NSOpenGLView *logoView;
 - (void) setPlaybackSeconds:(NSInteger)seconds;
 - (void) setTitle:(NSString*)title andAuthor:(NSString*)author andReleaseInfo:(NSString*)releaseInfo andSubtune:(NSInteger)subtune ofSubtunes:(NSInteger)subtuneCount withSonglength:(int)timeInSeconds;
+- (void) setChipBadge:(NSString*)chipName isMod:(BOOL)isMod;
 //- (void) updateUvMetersWithVoice1:(float)levelVoice1 andVoice2:(float)levelVoice2 andVoice3:(float)levelVoice3;
 - (void) prepareForQuit;
 

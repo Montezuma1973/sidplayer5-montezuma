@@ -22,6 +22,7 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
     NSTimeInterval _playTime;
     NSTimeInterval _totalTime;
     NSString *_tuneTitle;
+    NSString *_chipModel;
     float _audioLevel;
     float _bassLevel;
 
@@ -77,6 +78,7 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
     _playTime = 0;
     _totalTime = 0;
     _tuneTitle = @"";
+    _chipModel = @"MOS 6581";
     _audioLevel = 0.0f;
     _bassLevel = 0.0f;
 
@@ -506,11 +508,31 @@ static void SPFFT(float *real, float *imag, int size)
                   tuneTitle:(NSString *)tuneTitle
 // ----------------------------------------------------------------------------
 {
+    [self updatePlaybackState:isPlaying
+                        isMod:isMod
+                     playTime:playTime
+                    totalTime:totalTime
+                    tuneTitle:tuneTitle
+                    chipModel:isMod ? @"PAULA 8364" : _chipModel];
+}
+
+// ----------------------------------------------------------------------------
+- (void)updatePlaybackState:(BOOL)isPlaying
+                      isMod:(BOOL)isMod
+                   playTime:(NSTimeInterval)playTime
+                  totalTime:(NSTimeInterval)totalTime
+                  tuneTitle:(NSString *)tuneTitle
+                  chipModel:(NSString *)chipModel
+// ----------------------------------------------------------------------------
+{
     _isPlaying = isPlaying;
     _isMod = isMod;
     _playTime = playTime;
     _totalTime = totalTime;
     _tuneTitle = tuneTitle ? [tuneTitle copy] : @"";
+    if (chipModel != nil && [chipModel length] > 0) {
+        _chipModel = [chipModel copy];
+    }
 
     NSRect bounds = self.bounds;
     CGFloat width = bounds.size.width;
@@ -608,6 +630,74 @@ static void SPFFT(float *real, float *imag, int size)
     if ([NSDate timeIntervalSinceReferenceDate] < _hudDisplayUntil && [_hudText length] > 0) {
         [self drawHudOverlayInRect:bounds];
     }
+}
+
+// ============================================================================
+#pragma mark - Hardware Silicon Chip Badge Rendering
+// ============================================================================
+
+- (void)drawSiliconChipBadgeInRect:(NSRect)badgeRect model:(NSString *)model isMod:(BOOL)isMod
+{
+    if (model == nil || [model length] == 0) return;
+
+    // 1. Ceramic DIP IC package body
+    NSBezierPath *badgePath = [NSBezierPath bezierPathWithRoundedRect:badgeRect xRadius:3.5f yRadius:3.5f];
+    [[NSColor colorWithDeviceRed:0.12f green:0.13f blue:0.16f alpha:0.92f] setFill];
+    [badgePath fill];
+
+    // Metallic package border
+    [[NSColor colorWithDeviceRed:0.40f green:0.42f blue:0.48f alpha:0.75f] setStroke];
+    [badgePath setLineWidth:1.0f];
+    [badgePath stroke];
+
+    // 2. Silver DIP dual-inline pins along top and bottom
+    [[NSColor colorWithDeviceRed:0.75f green:0.77f blue:0.84f alpha:0.85f] setFill];
+    int numPins = (int)(badgeRect.size.width / 16.0f);
+    if (numPins < 3) numPins = 3;
+    CGFloat pinSpacing = (badgeRect.size.width - 24.0f) / (CGFloat)(numPins - 1);
+    for (int p = 0; p < numPins; p++) {
+        CGFloat pinX = badgeRect.origin.x + 14.0f + (CGFloat)p * pinSpacing;
+        NSRectFill(NSMakeRect(pinX, badgeRect.origin.y - 1.5f, 3.5f, 2.0f));
+        NSRectFill(NSMakeRect(pinX, badgeRect.origin.y + badgeRect.size.height - 0.5f, 3.5f, 2.0f));
+    }
+
+    // 3. Pin-1 semicircular notch on left edge
+    NSBezierPath *notch = [NSBezierPath bezierPath];
+    [notch appendBezierPathWithArcWithCenter:NSMakePoint(badgeRect.origin.x, badgeRect.origin.y + badgeRect.size.height * 0.5f)
+                                     radius:2.5f
+                                 startAngle:-90.0
+                                   endAngle:90.0];
+    [[NSColor colorWithDeviceRed:0.25f green:0.27f blue:0.30f alpha:1.0f] setFill];
+    [notch fill];
+
+    // 4. Status Illuminated LED dot
+    NSRect ledRect = NSMakeRect(badgeRect.origin.x + 6.0f, badgeRect.origin.y + (badgeRect.size.height - 5.0f) * 0.5f, 5.0f, 5.0f);
+    NSColor *ledColor = nil;
+    if (isMod) {
+        ledColor = [NSColor colorWithDeviceRed:1.0f green:0.62f blue:0.10f alpha:1.0f]; // Amber for Paula
+    } else if ([model containsString:@"8580"]) {
+        ledColor = [NSColor colorWithDeviceRed:0.10f green:0.85f blue:1.0f alpha:1.0f]; // Electric Cyan for 8580
+    } else {
+        ledColor = [NSColor colorWithDeviceRed:0.20f green:0.95f blue:0.35f alpha:1.0f]; // Emerald Green for 6581
+    }
+
+    NSGraphicsContext *ctx = [NSGraphicsContext currentContext];
+    [ctx saveGraphicsState];
+    NSShadow *ledGlow = [[NSShadow alloc] init];
+    ledGlow.shadowColor = ledColor;
+    ledGlow.shadowBlurRadius = 4.0f;
+    ledGlow.shadowOffset = NSMakeSize(0, 0);
+    [ledGlow set];
+    [ledColor setFill];
+    [[NSBezierPath bezierPathWithOvalInRect:ledRect] fill];
+    [ctx restoreGraphicsState];
+
+    // 5. Laser-etched metallic chip text
+    NSDictionary *badgeFontAttr = @{
+        NSFontAttributeName: [NSFont boldSystemFontOfSize:MIN(8.5f, badgeRect.size.height * 0.48f)],
+        NSForegroundColorAttributeName: [NSColor colorWithDeviceRed:0.92f green:0.94f blue:0.98f alpha:1.0f]
+    };
+    [model drawAtPoint:NSMakePoint(badgeRect.origin.x + 14.5f, badgeRect.origin.y + (badgeRect.size.height - 11.0f) * 0.5f) withAttributes:badgeFontAttr];
 }
 
 // ============================================================================
@@ -854,6 +944,10 @@ static void SPFFT(float *real, float *imag, int size)
         NSForegroundColorAttributeName: [NSColor whiteColor]
     };
     [@"AMIGA BOING" drawAtPoint:NSMakePoint(40.0f, 14.5f) withAttributes:badgeAttr];
+
+    // Hardware silicon chip badge in upper right corner
+    NSRect chipRect = NSMakeRect(width - 100.0f, 10.0f, 88.0f, 20.0f);
+    [self drawSiliconChipBadgeInRect:chipRect model:(_chipModel ?: @"PAULA 8364") isMod:YES];
 }
 
 // ============================================================================
@@ -1070,6 +1164,10 @@ static void SPFFT(float *real, float *imag, int size)
         [[NSBezierPath bezierPathWithOvalInRect:ledRect] fill];
         [ctx restoreGraphicsState];
     }
+
+    // Hardware silicon chip badge on cassette shell
+    NSRect chipRect = NSMakeRect(originX + cassetteW - 105.0f, originY + cassetteH - 24.0f, 88.0f, 18.0f);
+    [self drawSiliconChipBadgeInRect:chipRect model:(_chipModel ?: @"MOS 6581") isMod:NO];
 }
 
 // ============================================================================
@@ -1216,6 +1314,10 @@ static void SPFFT(float *real, float *imag, int size)
         NSForegroundColorAttributeName: [NSColor colorWithDeviceRed:0.30f green:0.30f blue:0.35f alpha:1.0f]
     };
     [@"C= commodore 1541" drawAtPoint:NSMakePoint(originX + 14.0f, originY + 6.0f) withAttributes:brandAttr];
+
+    // Hardware silicon chip badge on 1541 bezel
+    NSRect chipRect = NSMakeRect(originX + 130.0f, originY + 5.0f, 86.0f, 16.0f);
+    [self drawSiliconChipBadgeInRect:chipRect model:(_chipModel ?: @"MOS 6581") isMod:NO];
 }
 
 // ============================================================================
@@ -1226,6 +1328,10 @@ static void SPFFT(float *real, float *imag, int size)
 {
     [[NSColor controlBackgroundColor] setFill];
     NSRectFill(bounds);
+
+    // Hardware silicon chip badge in upper right corner
+    NSRect chipRect = NSMakeRect(bounds.size.width - 96.0f, 6.0f, 88.0f, 18.0f);
+    [self drawSiliconChipBadgeInRect:chipRect model:(_chipModel ?: (_isMod ? @"PAULA 8364" : @"MOS 6581")) isMod:_isMod];
 
     CGFloat gap = 2.0f;
     CGFloat totalGap = gap * (kSpectrumBarCount + 1);

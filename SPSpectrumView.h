@@ -20,6 +20,7 @@ typedef NS_ENUM(NSInteger, SPCRTDisplayProfile) {
 @property (nonatomic, assign) SPRetroVisualizerMode visualizerMode;
 @property (nonatomic, assign) BOOL crtEffectEnabled;
 @property (nonatomic, assign) SPCRTDisplayProfile crtProfile;
+@property (nonatomic, copy) NSString *chipModel;
 
 - (void)updateWithSamples:(const short *)samples count:(int)count sampleRate:(int)sampleRate;
 
@@ -28,6 +29,13 @@ typedef NS_ENUM(NSInteger, SPCRTDisplayProfile) {
                    playTime:(NSTimeInterval)playTime
                   totalTime:(NSTimeInterval)totalTime
                   tuneTitle:(NSString *)tuneTitle;
+
+- (void)updatePlaybackState:(BOOL)isPlaying
+                      isMod:(BOOL)isMod
+                   playTime:(NSTimeInterval)playTime
+                  totalTime:(NSTimeInterval)totalTime
+                  tuneTitle:(NSString *)tuneTitle
+                  chipModel:(NSString *)chipModel;
 
 - (void)cycleVisualizerMode;
 - (void)toggleCRTEffect;

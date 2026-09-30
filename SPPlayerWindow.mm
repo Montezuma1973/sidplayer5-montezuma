@@ -638,11 +638,19 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [miniStatusDisplay setPlaybackSeconds:seconds];
     [browserDataSource updateCurrentSong:seconds];
 
-    // disable sidPopup menu in case of USB player or MOD playback
-    if ([player isUsbDeviceActive] || [player isCurrentTuneMod]) {
+    // update sidPopup state and tooltip
+    if ([player isUsbDeviceActive]) {
         [sidPopup setEnabled:FALSE];
-    } else
+        [sidPopup setToolTip:@"USB SID device active"];
+    } else if ([player isCurrentTuneMod]) {
         [sidPopup setEnabled:TRUE];
+        [sidPopup setToolTip:@"Amiga MOS / CSG 8364 'Paula' (4-Channel 8-bit PCM Hardware DMA)"];
+    } else {
+        [sidPopup setEnabled:TRUE];
+        const char *rawChip = [player getCurrentChipModel];
+        NSString *chipStr = (rawChip && strlen(rawChip) > 0) ? [NSString stringWithUTF8String:rawChip] : @"MOS 6581";
+        [sidPopup setToolTip:[NSString stringWithFormat:@"SID Chip: %@ (Click to configure SID model/filters)", chipStr]];
+    }
     [sidPopup setNeedsDisplay:TRUE];
     [sidPopup.superview displayIfNeeded];
     
@@ -826,11 +834,25 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
                 title = [NSString stringWithUTF8String:rawTitle];
             }
         }
+        NSString* chipName = @"MOS 6581";
+        if (isMod) {
+            chipName = @"PAULA 8364";
+        } else if (player != nil) {
+            const char* rawChip = [player getCurrentChipModel];
+            if (rawChip && strlen(rawChip) > 0) {
+                chipName = [NSString stringWithUTF8String:rawChip];
+            }
+            if ([player getSidChips] > 1) {
+                chipName = [NSString stringWithFormat:@"2x %@", chipName];
+            }
+        }
+
         [spectrumView updatePlaybackState:isPlaying
                                     isMod:isMod
                                  playTime:playTime
                                 totalTime:totalTime
-                                tuneTitle:title];
+                                tuneTitle:title
+                                chipModel:chipName];
     }
 }
 
@@ -876,8 +898,23 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         }
     }
     
+    NSString* chipName = @"MOS 6581";
+    if ([player isCurrentTuneMod]) {
+        chipName = @"PAULA 8364";
+    } else {
+        const char* rawChip = [player getCurrentChipModel];
+        if (rawChip && strlen(rawChip) > 0) {
+            chipName = [NSString stringWithUTF8String:rawChip];
+        }
+        if ([player getSidChips] > 1) {
+            chipName = [NSString stringWithFormat:@"2x %@", chipName];
+        }
+    }
+    
     [statusDisplay setTitle:title andAuthor:author andReleaseInfo:releaseInfo andSubtune:currentSubtune ofSubtunes:subtuneCount withSonglength:(int)currentTuneLengthInSeconds];
+    [statusDisplay setChipBadge:chipName isMod:[player isCurrentTuneMod]];
     [miniStatusDisplay setTitle:title andAuthor:author andReleaseInfo:releaseInfo andSubtune:currentSubtune ofSubtunes:subtuneCount withSonglength:(int)currentTuneLengthInSeconds];
+    [miniStatusDisplay setChipBadge:chipName isMod:[player isCurrentTuneMod]];
     
     [[SPPreferencesController sharedInstance] initializeFilterSettingsFromChipModelOfPlayer:player];
     
@@ -1752,10 +1789,17 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 // ----------------------------------------------------------------------------
 - (IBAction) SIDSelectorButtonPressed:(id)sender
 {
-    
-    NSButton *button = (NSButton *)sender;
+    if ([player isCurrentTuneMod]) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = @"Commodore Amiga Audio Hardware";
+        alert.informativeText = @"Sound Hardware: MOS / CSG 8364 'Paula'\n• 4 hardware DMA sound channels (stereo left/right)\n• 8-bit linear pulse-code modulation (PCM)\n• Variable sampling rates up to 28.8 kHz (PAL) / 28.9 kHz (NTSC)\n• Native Amiga ProTracker / FastTracker / OctaMED playback";
+        [alert runModal];
+        return;
+    }
+
+    NSRect senderBounds = [sender respondsToSelector:@selector(bounds)] ? ((NSView *)sender).bounds : NSZeroRect;
     // Convert point to main window coordinates
-    NSRect entryRect = [sender convertRect:button.bounds
+    NSRect entryRect = [sender convertRect:senderBounds
                                     toView:[[NSApp mainWindow] contentView]];
     // Show popover
     [popoverSIDSelector showRelativeToRect:entryRect
