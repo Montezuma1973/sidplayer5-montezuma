@@ -32,6 +32,7 @@
 #import "PlayerUsbWorker.h"
 #import "USBDeviceWatcher.h"
 #import "SPModPlayer.h"
+#import "SPSidNoteUtils.h"
 
 
 // bins
@@ -50,9 +51,11 @@
 
 unsigned char sid_registers[ 0x19 ];
 
-static double mixer_value[3] = { 1.0, 1.0, 1.0 };
-static double mixer_preMute[3] = { 1.0, 1.0, 1.0 };
-static BOOL mixer_muted[3] = { NO, NO, NO };
+static double mixer_value[6] = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+static double mixer_preMute[6] = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+static BOOL mixer_muted[6] = { NO, NO, NO, NO, NO, NO };
+static BOOL mixer_soloed[6] = { NO, NO, NO, NO, NO, NO };
+static float mixer_vuPeak[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 
 typedef std::vector<SidRegisterFrame> SidRegisterLog;
 
@@ -747,20 +750,20 @@ static inline float approximate_dac(int x, float kinkiness)
         return;
     if (mBuilder_reSID == NULL)
         return;
-    int numberSids = mBuilder_reSID->usedDevices();
-    
-    if (voice < 0 || voice > 2)
+    int numberSids = mBuilder_reSID ? mBuilder_reSID->usedDevices() : 1;
+    int maxVoices = numberSids * 3;
+    if (voice < 0 || voice >= maxVoices || voice >= 6)
         return;
 
     mixer_value[voice] = volume;
     if (!mixer_muted[voice])
         mixer_preMute[voice] = volume;
-    if (volume == 0)
-        for (int i=0;i<numberSids;i++)
-            mSidEmuEngine->mute(i, voice, true);
-    else
-        for (int i=0;i<numberSids;i++)
-            mSidEmuEngine->mute(i, voice, false);
+
+    int chip = (voice < 3) ? 0 : 1;
+    int chipVoice = voice % 3;
+    if (mSidEmuEngine) {
+        mSidEmuEngine->mute(chip, chipVoice, (volume == 0));
+    }
 }
 
 - (float) voiceVolumeForVoice:(int) voice
@@ -768,7 +771,7 @@ static inline float approximate_dac(int x, float kinkiness)
     if (mIsModActive && mModPlayer) {
         return [mModPlayer voiceVolumeForVoice:voice];
     }
-    if (voice < 0 || voice > 2)
+    if (voice < 0 || voice >= 6)
         return 0.0f;
     return (float)mixer_value[voice];
 }
@@ -778,7 +781,7 @@ static inline float approximate_dac(int x, float kinkiness)
     if (mIsModActive && mModPlayer) {
         return [mModPlayer voicePreMuteVolumeForVoice:voice];
     }
-    if (voice < 0 || voice > 2)
+    if (voice < 0 || voice >= 6)
         return 0.0f;
     return (float)mixer_preMute[voice];
 }
@@ -788,7 +791,7 @@ static inline float approximate_dac(int x, float kinkiness)
     if (mIsModActive && mModPlayer) {
         return [mModPlayer isVoiceMuted:voice];
     }
-    if (voice < 0 || voice > 2)
+    if (voice < 0 || voice >= 6)
         return NO;
     return mixer_muted[voice];
 }
@@ -803,7 +806,9 @@ static inline float approximate_dac(int x, float kinkiness)
         return;
     if (mBuilder_reSID == NULL)
         return;
-    if (voice < 0 || voice > 2)
+    int numberSids = mBuilder_reSID->usedDevices();
+    int maxVoices = numberSids * 3;
+    if (voice < 0 || voice >= maxVoices || voice >= 6)
         return;
 
     if (muted == mixer_muted[voice])
@@ -829,6 +834,156 @@ static inline float approximate_dac(int x, float kinkiness)
         return;
     }
     [self setVoiceMuted:![self isVoiceMuted:voice] forVoice:voice];
+}
+
+- (int) activeChannelCount
+{
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer numChannels];
+    }
+    int sids = mBuilder_reSID ? mBuilder_reSID->usedDevices() : 1;
+    return (sids > 1) ? 6 : 3;
+}
+
+- (BOOL) isVoiceSoloed:(int) voice
+{
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer isVoiceSoloed:voice];
+    }
+    if (voice < 0 || voice >= 6) return NO;
+    return mixer_soloed[voice];
+}
+
+- (void) toggleVoiceSoloed:(int) voice
+{
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer toggleVoiceSoloed:voice];
+        return;
+    }
+    int totalVoices = [self activeChannelCount];
+    if (voice < 0 || voice >= totalVoices) return;
+
+    if (mixer_soloed[voice]) {
+        for (int i = 0; i < totalVoices; i++) {
+            mixer_soloed[i] = NO;
+            [self setVoiceMuted:NO forVoice:i];
+        }
+    } else {
+        for (int i = 0; i < totalVoices; i++) {
+            mixer_soloed[i] = (i == voice);
+            [self setVoiceMuted:(i != voice) forVoice:i];
+        }
+    }
+}
+
+- (void) unmuteAllVoices
+{
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer unmuteAllVoices];
+        return;
+    }
+    int totalVoices = [self activeChannelCount];
+    for (int i = 0; i < totalVoices; i++) {
+        mixer_soloed[i] = NO;
+        [self setVoiceMuted:NO forVoice:i];
+    }
+}
+
+- (float) voiceVUPeakForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer voiceVUPeakForVoice:voice];
+    }
+    if (voice < 0 || voice >= 6) return 0.0f;
+    if (mixer_muted[voice]) return 0.0f;
+
+    const short* buf = [self voiceScopeBufferForVoice:voice];
+    if (buf) {
+        unsigned int writeIdx = [self voiceScopeWriteIndex];
+        unsigned int bufSize = [self voiceScopeBufferSize];
+        int maxVal = 0;
+        for (int i = 0; i < 64; i++) {
+            int idx = (writeIdx + bufSize - 1 - i) % bufSize;
+            int val = abs(buf[idx]);
+            if (val > maxVal) maxVal = val;
+        }
+        float raw = (float)maxVal / 32768.0f;
+        if (raw > mixer_vuPeak[voice]) {
+            mixer_vuPeak[voice] = raw;
+        } else {
+            mixer_vuPeak[voice] = mixer_vuPeak[voice] * 0.86f;
+        }
+        return mixer_vuPeak[voice];
+    }
+
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (regFrame && voice < 3) {
+        int regOffset = voice * 7;
+        uint8_t control = regFrame->mRegisters[regOffset + 4];
+        BOOL gate = (control & 0x01) != 0;
+        uint8_t susRel = regFrame->mRegisters[regOffset + 6];
+        uint8_t sustain = (susRel >> 4) & 0x0F;
+        float level = gate ? (sustain / 15.0f * 0.75f + 0.25f) : 0.0f;
+        if (level > mixer_vuPeak[voice]) {
+            mixer_vuPeak[voice] = level;
+        } else {
+            mixer_vuPeak[voice] = mixer_vuPeak[voice] * 0.86f;
+        }
+        return mixer_vuPeak[voice];
+    }
+    return 0.0f;
+}
+
+- (NSString*) channelNoteForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer channelNoteForVoice:voice];
+    }
+    if (voice < 0 || voice >= 6) return @"--";
+    if (mixer_muted[voice]) return @"--";
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (!regFrame) return @"--";
+    int regOffset = (voice % 3) * 7;
+    uint16_t freq = regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
+    uint8_t control = regFrame->mRegisters[regOffset + 4];
+    BOOL gateOn = (control & 0x01) != 0;
+    const char* noteStr = gateOn ? SPSidNoteStringForFrequency(freq) : "--";
+    if (!noteStr || noteStr[0] == '\0') return @"--";
+    return [NSString stringWithUTF8String:noteStr];
+}
+
+- (NSString*) channelInstrumentForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer channelInstrumentForVoice:voice];
+    }
+    if (voice < 0 || voice >= 6) return @"--";
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (!regFrame) return @"--";
+    int regOffset = (voice % 3) * 7;
+    uint8_t control = regFrame->mRegisters[regOffset + 4];
+    BOOL gateOn = (control & 0x01) != 0;
+    if (!gateOn) return @"--";
+    uint8_t waveform = control & 0xF0;
+    NSMutableArray<NSString*>* parts = [NSMutableArray arrayWithCapacity:4];
+    if (waveform & 0x10) [parts addObject:@"Tri"];
+    if (waveform & 0x20) [parts addObject:@"Saw"];
+    if (waveform & 0x40) [parts addObject:@"Pulse"];
+    if (waveform & 0x80) [parts addObject:@"Noise"];
+    if (parts.count == 0) return @"--";
+    return [parts componentsJoinedByString:@"+"];
+}
+
+- (int) channelPeriodForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) {
+        return [mModPlayer channelPeriodForVoice:voice];
+    }
+    if (voice < 0 || voice >= 6) return 0;
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (!regFrame) return 0;
+    int regOffset = (voice % 3) * 7;
+    return regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
 }
 /* FIXME: FILTER SETTINGS?!
  // ----------------------------------------------------------------------------

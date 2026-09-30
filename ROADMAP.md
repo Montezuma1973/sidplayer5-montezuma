@@ -44,12 +44,16 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
 
 ## 🎛️ Milestone 2: Multi-Channel Audio Mixer & Tracker Matrix
 
-- [ ] **2.1 Channel Mute & Solo Matrix Strip**
-  - [ ] Real-time mute/solo buttons for individual audio channels:
+- [x] **2.1 Channel Mute & Solo Matrix Strip**
+  - [x] Real-time mute/solo buttons for individual audio channels:
     - Voices 1, 2, and 3 for SID tunes (plus Voice 4-6 for dual SID).
     - Channels 1, 2, 3, and 4 (up to 8 channels) for Amiga MOD / XM / S3M / IT tunes.
-  - [ ] Real-time per-channel VU meters / activity LEDs.
-  - [ ] Audio engine integration to isolate melody, basslines, arpeggios, and drum samples.
+  - [x] Real-time per-channel segmented LED VU meters with peak hold and smooth dynamic decay.
+  - [x] Channel pitch/note and waveform/instrument inspector readouts (e.g. C-4, SMP 01, period).
+  - [x] Interactive mouse hit testing for channel `[ M ]` (Mute), `[ S ]` (Solo), and `[ UNMUTE ALL ]` header button.
+  - [x] Quick keyboard shortcuts: keys `1`–`8` toggle Mute, `Shift/Option+1`–`8` toggle Solo, `0`/`U` unmute all.
+  - [x] Multi-channel scrolling tracker pattern roll underneath the matrix strip.
+  - [x] Audio engine integration across `SPModPlayer` (`libxmp`) and `PlayerLibSidplayWrapper` (`libsidplayfp` ReSID).
 
 - [ ] **2.2 Live Tracker Pattern View / Piano Roll**
   - [ ] Live upward-scrolling tracker note pattern matrix (displaying notes, instruments, effects).

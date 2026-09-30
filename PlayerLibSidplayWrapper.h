@@ -99,6 +99,14 @@ struct SidRegisterFrame
 - (BOOL) isVoiceMuted:(int) voice;
 - (void) setVoiceMuted:(BOOL)muted forVoice:(int) voice;
 - (void) toggleVoiceMuted:(int) voice;
+- (int) activeChannelCount;
+- (BOOL) isVoiceSoloed:(int) voice;
+- (void) toggleVoiceSoloed:(int) voice;
+- (void) unmuteAllVoices;
+- (float) voiceVUPeakForVoice:(int) voice;
+- (NSString*) channelNoteForVoice:(int) voice;
+- (NSString*) channelInstrumentForVoice:(int) voice;
+- (int) channelPeriodForVoice:(int) voice;
 
 //    sid_filter_t*            getFilterSettings()                                    { return &mFilterSettings; }
 //    void                    setFilterSettings(sid_filter_t* filterSettings);

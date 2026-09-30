@@ -244,6 +244,18 @@ extern NSString* SPUrlRequestUserAgentString;
 - (void) applyCurrentTheme;
 - (void) updateThemeMenuChecks;
 @property (NS_NONATOMIC_IOSONLY, readonly) SPAppTheme currentTheme;
+
+// Channel Matrix & Voice Solo/Mute
+- (int) activeChannelCount;
+- (BOOL) isVoiceMuted:(int)voice;
+- (void) toggleVoiceMute:(int)voice;
+- (BOOL) isVoiceSoloed:(int)voice;
+- (void) toggleVoiceSolo:(int)voice;
+- (void) unmuteAllVoices;
+- (float) voiceVUPeakForVoice:(int)voice;
+- (NSString*) channelNoteForVoice:(int)voice;
+- (NSString*) channelInstrumentForVoice:(int)voice;
+- (int) channelPeriodForVoice:(int)voice;
 @end
 
 

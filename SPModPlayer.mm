@@ -11,6 +11,8 @@
 
 static const unsigned int kModScopeBufferSize = 2048;
 
+static const int kMaxModChannels = 16;
+
 @interface SPModPlayer () {
     xmp_context mCtx;
     int mSampleRate;
@@ -27,12 +29,14 @@ static const unsigned int kModScopeBufferSize = 2048;
     char mReleaseInfo[XMP_NAME_SIZE + 64];
     char mFormat[XMP_NAME_SIZE + 64];
     
-    short mScopeBuffers[4][kModScopeBufferSize];
+    short mScopeBuffers[kMaxModChannels][kModScopeBufferSize];
     unsigned int mScopeWriteIndex;
     
-    float mVoiceVolume[4];
-    float mVoicePreMute[4];
-    BOOL mVoiceMuted[4];
+    float mVoiceVolume[kMaxModChannels];
+    float mVoicePreMute[kMaxModChannels];
+    BOOL mVoiceMuted[kMaxModChannels];
+    BOOL mVoiceSoloed[kMaxModChannels];
+    float mVoiceVUPeak[kMaxModChannels];
 }
 @end
 
@@ -212,10 +216,12 @@ static inline BOOL IsKnownModExtension(NSString* ext)
         memset(mFormat, 0, sizeof(mFormat));
         memset(mScopeBuffers, 0, sizeof(mScopeBuffers));
         
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < kMaxModChannels; i++) {
             mVoiceVolume[i] = 1.0f;
             mVoicePreMute[i] = 1.0f;
             mVoiceMuted[i] = NO;
+            mVoiceSoloed[i] = NO;
+            mVoiceVUPeak[i] = 0.0f;
         }
     }
     return self;
@@ -385,7 +391,7 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     for (int s = 0; s < sampleCount; s++) {
         short sample = samples[s];
         unsigned int idx = mScopeWriteIndex;
-        for (int ch = 0; ch < 4 && ch < mNumChannels; ch++) {
+        for (int ch = 0; ch < kMaxModChannels && ch < mNumChannels; ch++) {
             if (mVoiceMuted[ch]) {
                 mScopeBuffers[ch][idx] = 0;
             } else {
@@ -394,6 +400,15 @@ static inline BOOL IsKnownModExtension(NSString* ext)
             }
         }
         mScopeWriteIndex = (idx + 1) % kModScopeBufferSize;
+    }
+
+    for (int ch = 0; ch < kMaxModChannels && ch < mNumChannels; ch++) {
+        float rawVol = mVoiceMuted[ch] ? 0.0f : ((float)fi.channel_info[ch].volume / 64.0f);
+        if (rawVol > mVoiceVUPeak[ch]) {
+            mVoiceVUPeak[ch] = rawVol;
+        } else {
+            mVoiceVUPeak[ch] = mVoiceVUPeak[ch] * 0.88f;
+        }
     }
 }
 
@@ -456,9 +471,14 @@ static inline BOOL IsKnownModExtension(NSString* ext)
 - (const char*) getCurrentReleaseInfo { return mReleaseInfo; }
 - (const char*) getCurrentFormat      { return mFormat; }
 
+- (int) numChannels
+{
+    return mNumChannels;
+}
+
 - (const short*) voiceScopeBufferForVoice:(int)voice
 {
-    if (voice < 0 || voice >= 4) return NULL;
+    if (voice < 0 || voice >= kMaxModChannels) return NULL;
     return mScopeBuffers[voice];
 }
 
@@ -474,25 +494,25 @@ static inline BOOL IsKnownModExtension(NSString* ext)
 
 - (float) voiceVolumeForVoice:(int)voice
 {
-    if (voice < 0 || voice >= 4) return 0.0f;
+    if (voice < 0 || voice >= kMaxModChannels) return 0.0f;
     return mVoiceVolume[voice];
 }
 
 - (float) voicePreMuteVolumeForVoice:(int)voice
 {
-    if (voice < 0 || voice >= 4) return 0.0f;
+    if (voice < 0 || voice >= kMaxModChannels) return 0.0f;
     return mVoicePreMute[voice];
 }
 
 - (BOOL) isVoiceMuted:(int)voice
 {
-    if (voice < 0 || voice >= 4) return NO;
+    if (voice < 0 || voice >= kMaxModChannels) return NO;
     return mVoiceMuted[voice];
 }
 
 - (void) setVoiceMuted:(BOOL)muted forVoice:(int)voice
 {
-    if (voice < 0 || voice >= 4) return;
+    if (voice < 0 || voice >= kMaxModChannels) return;
     mVoiceMuted[voice] = muted;
     if (mCtx) {
         xmp_channel_mute(mCtx, voice, muted ? 1 : 0);
@@ -510,9 +530,84 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     [self setVoiceMuted:![self isVoiceMuted:voice] forVoice:voice];
 }
 
+- (BOOL) isVoiceSoloed:(int)voice
+{
+    if (voice < 0 || voice >= kMaxModChannels) return NO;
+    return mVoiceSoloed[voice];
+}
+
+- (void) toggleVoiceSoloed:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels) return;
+    
+    if (mVoiceSoloed[voice]) {
+        // Unsolo all
+        for (int i = 0; i < mNumChannels; i++) {
+            mVoiceSoloed[i] = NO;
+            [self setVoiceMuted:NO forVoice:i];
+        }
+    } else {
+        // Solo this voice
+        for (int i = 0; i < mNumChannels; i++) {
+            mVoiceSoloed[i] = (i == voice);
+            [self setVoiceMuted:(i != voice) forVoice:i];
+        }
+    }
+}
+
+- (void) unmuteAllVoices
+{
+    for (int i = 0; i < mNumChannels; i++) {
+        mVoiceSoloed[i] = NO;
+        [self setVoiceMuted:NO forVoice:i];
+    }
+}
+
+- (float) voiceVUPeakForVoice:(int)voice
+{
+    if (voice < 0 || voice >= kMaxModChannels) return 0.0f;
+    return mVoiceVUPeak[voice];
+}
+
+static const char* sModNoteNames[12] = {
+    "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"
+};
+
+- (NSString*) channelNoteForVoice:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels || !mCtx || !mIsLoaded || !mIsPlaying) return @"--";
+    if (mVoiceMuted[voice]) return @"--";
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    int note = fi.channel_info[voice].note; // 1..120
+    int vol = fi.channel_info[voice].volume;
+    if (note <= 0 || vol <= 0) return @"--";
+    int semitone = (note - 1) % 12;
+    int octave = (note - 1) / 12 + 1;
+    return [NSString stringWithFormat:@"%s%d", sModNoteNames[semitone], octave];
+}
+
+- (NSString*) channelInstrumentForVoice:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels || !mCtx || !mIsLoaded) return @"--";
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    int ins = fi.channel_info[voice].instrument;
+    if (ins <= 0) return @"--";
+    return [NSString stringWithFormat:@"SMP %02d", ins];
+}
+
+- (int) channelPeriodForVoice:(int)voice
+{
+    if (voice < 0 || voice >= mNumChannels || !mCtx || !mIsLoaded) return 0;
+    struct xmp_frame_info fi;
+    xmp_get_frame_info(mCtx, &fi);
+    return fi.channel_info[voice].period;
+}
+
 - (void) setVoiceVolume:(float)volume forVoice:(int)voice
 {
-    if (voice < 0 || voice >= 4) return;
+    if (voice < 0 || voice >= kMaxModChannels) return;
     mVoiceVolume[voice] = volume;
     if (!mVoiceMuted[voice]) {
         mVoicePreMute[voice] = volume;
