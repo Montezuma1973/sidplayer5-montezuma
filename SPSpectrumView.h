@@ -8,9 +8,18 @@ typedef NS_ENUM(NSInteger, SPRetroVisualizerMode) {
     SPRetroVisualizerModeSpectrum = 4     // Classic Equalizer Spectrum Bars
 };
 
+typedef NS_ENUM(NSInteger, SPCRTDisplayProfile) {
+    SPCRTDisplayProfile1084SColor = 0,    // Commodore 1084S Color RGB CRT
+    SPCRTDisplayProfileAmber = 1,         // Vintage Monochrome Amber Phosphor
+    SPCRTDisplayProfileGreen = 2,         // Classic Monochrome Green Phosphor
+    SPCRTDisplayProfileC64Cyan = 3        // C64 Blue / Cyan Phosphor
+};
+
 @interface SPSpectrumView : NSView
 
 @property (nonatomic, assign) SPRetroVisualizerMode visualizerMode;
+@property (nonatomic, assign) BOOL crtEffectEnabled;
+@property (nonatomic, assign) SPCRTDisplayProfile crtProfile;
 
 - (void)updateWithSamples:(const short *)samples count:(int)count sampleRate:(int)sampleRate;
 
@@ -21,5 +30,7 @@ typedef NS_ENUM(NSInteger, SPRetroVisualizerMode) {
                   tuneTitle:(NSString *)tuneTitle;
 
 - (void)cycleVisualizerMode;
+- (void)toggleCRTEffect;
+- (void)cycleCRTProfile;
 
 @end

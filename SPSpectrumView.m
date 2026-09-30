@@ -4,6 +4,8 @@
 static const int kSpectrumFFTSize = 1024;
 static const int kSpectrumBarCount = 8;
 static NSString * const kRetroVisualizerModePrefKey = @"SPVisualizerRetroMode";
+static NSString * const kCRTEffectEnabledPrefKey = @"SPVisualizerCRTEffect";
+static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
 
 @implementation SPSpectrumView
 {
@@ -98,11 +100,30 @@ static NSString * const kRetroVisualizerModePrefKey = @"SPVisualizerRetroMode";
     }
     _visualizerMode = (SPRetroVisualizerMode)savedMode;
 
-    [self setToolTip:@"Click to cycle visualizer mode (Auto, Boing Ball, Datasette Cassette, 1541 Floppy, Equalizer)"];
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:kCRTEffectEnabledPrefKey] != nil) {
+        _crtEffectEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kCRTEffectEnabledPrefKey];
+    } else {
+        _crtEffectEnabled = YES; // Default CRT monitor filter enabled
+    }
+
+    NSInteger savedProfile = [[NSUserDefaults standardUserDefaults] integerForKey:kCRTProfilePrefKey];
+    if (savedProfile < 0 || savedProfile > 3) {
+        savedProfile = SPCRTDisplayProfile1084SColor;
+    }
+    _crtProfile = (SPCRTDisplayProfile)savedProfile;
+
+    [self setToolTip:@"Click to switch mode. Double-click to toggle CRT scanlines. Right-click for options."];
 }
 
 // ----------------------------------------------------------------------------
 - (BOOL)isFlipped
+// ----------------------------------------------------------------------------
+{
+    return YES;
+}
+
+// ----------------------------------------------------------------------------
+- (BOOL)acceptsFirstResponder
 // ----------------------------------------------------------------------------
 {
     return YES;
@@ -124,6 +145,43 @@ static NSString * const kRetroVisualizerModePrefKey = @"SPVisualizerRetroMode";
 {
     SPRetroVisualizerMode nextMode = (SPRetroVisualizerMode)((_visualizerMode + 1) % 5);
     [self setVisualizerMode:nextMode];
+}
+
+// ----------------------------------------------------------------------------
+- (void)setCrtEffectEnabled:(BOOL)crtEffectEnabled
+// ----------------------------------------------------------------------------
+{
+    _crtEffectEnabled = crtEffectEnabled;
+    [[NSUserDefaults standardUserDefaults] setBool:_crtEffectEnabled forKey:kCRTEffectEnabledPrefKey];
+    [self showHudForCRTState];
+    [self setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
+- (void)toggleCRTEffect
+// ----------------------------------------------------------------------------
+{
+    [self setCrtEffectEnabled:!_crtEffectEnabled];
+}
+
+// ----------------------------------------------------------------------------
+- (void)setCrtProfile:(SPCRTDisplayProfile)crtProfile
+// ----------------------------------------------------------------------------
+{
+    _crtProfile = crtProfile;
+    [[NSUserDefaults standardUserDefaults] setInteger:_crtProfile forKey:kCRTProfilePrefKey];
+    _crtEffectEnabled = YES;
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:kCRTEffectEnabledPrefKey];
+    [self showHudForCRTState];
+    [self setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
+- (void)cycleCRTProfile
+// ----------------------------------------------------------------------------
+{
+    SPCRTDisplayProfile nextProfile = (SPCRTDisplayProfile)((_crtProfile + 1) % 4);
+    [self setCrtProfile:nextProfile];
 }
 
 // ----------------------------------------------------------------------------
@@ -153,10 +211,57 @@ static NSString * const kRetroVisualizerModePrefKey = @"SPVisualizerRetroMode";
 }
 
 // ----------------------------------------------------------------------------
+- (void)showHudForCRTState
+// ----------------------------------------------------------------------------
+{
+    if (!_crtEffectEnabled) {
+        _hudText = @"CRT MONITOR: OFF";
+    } else {
+        NSString *profileName = @"1084S COLOR";
+        switch (_crtProfile) {
+            case SPCRTDisplayProfile1084SColor:
+                profileName = @"COMMODORE 1084S COLOR";
+                break;
+            case SPCRTDisplayProfileAmber:
+                profileName = @"AMBER PHOSPHOR";
+                break;
+            case SPCRTDisplayProfileGreen:
+                profileName = @"GREEN PHOSPHOR";
+                break;
+            case SPCRTDisplayProfileC64Cyan:
+                profileName = @"C64 CYAN / BLUE";
+                break;
+        }
+        _hudText = [NSString stringWithFormat:@"CRT MONITOR: %@ (ON)", profileName];
+    }
+    _hudDisplayUntil = [NSDate timeIntervalSinceReferenceDate] + 2.4;
+}
+
+// ----------------------------------------------------------------------------
 - (void)mouseDown:(NSEvent *)event
 // ----------------------------------------------------------------------------
 {
-    [self cycleVisualizerMode];
+    if ([event clickCount] == 2) {
+        [self toggleCRTEffect];
+    } else {
+        [self cycleVisualizerMode];
+    }
+}
+
+// ----------------------------------------------------------------------------
+- (void)keyDown:(NSEvent *)event
+// ----------------------------------------------------------------------------
+{
+    NSString *chars = [event charactersIgnoringModifiers];
+    if ([chars isEqualToString:@"c"] || [chars isEqualToString:@"C"]) {
+        [self toggleCRTEffect];
+    } else if ([chars isEqualToString:@"p"] || [chars isEqualToString:@"P"]) {
+        [self cycleCRTProfile];
+    } else if ([chars isEqualToString:@"v"] || [chars isEqualToString:@"V"]) {
+        [self cycleVisualizerMode];
+    } else {
+        [super keyDown:event];
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -185,6 +290,44 @@ static NSString * const kRetroVisualizerModePrefKey = @"SPVisualizerRetroMode";
         [menu addItem:item];
     }
 
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    // CRT Monitor Submenu
+    NSMenuItem *crtSubmenuItem = [[NSMenuItem alloc] initWithTitle:@"CRT Monitor & Scanlines" action:nil keyEquivalent:@""];
+    NSMenu *crtSubmenu = [[NSMenu alloc] initWithTitle:@"CRT Monitor"];
+
+    NSMenuItem *toggleCRTItem = [[NSMenuItem alloc] initWithTitle:@"Enable CRT Scanlines & Glass"
+                                                           action:@selector(toggleCRTEffect)
+                                                    keyEquivalent:@"c"];
+    toggleCRTItem.target = self;
+    if (_crtEffectEnabled) {
+        toggleCRTItem.state = NSControlStateValueOn;
+    }
+    [crtSubmenu addItem:toggleCRTItem];
+    [crtSubmenu addItem:[NSMenuItem separatorItem]];
+
+    NSArray *profiles = @[
+        @"Commodore 1084S (Color RGB)",
+        @"Amber Phosphor (Monochrome)",
+        @"Green Phosphor (Monochrome)",
+        @"C64 Cyan / Blue Phosphor"
+    ];
+
+    for (NSInteger p = 0; p < 4; p++) {
+        NSMenuItem *pItem = [[NSMenuItem alloc] initWithTitle:profiles[p]
+                                                       action:@selector(selectProfileFromMenu:)
+                                                keyEquivalent:@""];
+        pItem.target = self;
+        pItem.tag = p;
+        if (_crtEffectEnabled && p == (NSInteger)_crtProfile) {
+            pItem.state = NSControlStateValueOn;
+        }
+        [crtSubmenu addItem:pItem];
+    }
+
+    [crtSubmenuItem setSubmenu:crtSubmenu];
+    [menu addItem:crtSubmenuItem];
+
     return menu;
 }
 
@@ -193,6 +336,13 @@ static NSString * const kRetroVisualizerModePrefKey = @"SPVisualizerRetroMode";
 // ----------------------------------------------------------------------------
 {
     [self setVisualizerMode:(SPRetroVisualizerMode)sender.tag];
+}
+
+// ----------------------------------------------------------------------------
+- (void)selectProfileFromMenu:(NSMenuItem *)sender
+// ----------------------------------------------------------------------------
+{
+    [self setCrtProfile:(SPCRTDisplayProfile)sender.tag];
 }
 
 // ----------------------------------------------------------------------------
@@ -447,6 +597,11 @@ static void SPFFT(float *real, float *imag, int size)
         default:
             [self drawSpectrumInRect:bounds];
             break;
+    }
+
+    // Render CRT scanlines & glass filter if enabled
+    if (_crtEffectEnabled) {
+        [self drawCRTOverlayInRect:bounds];
     }
 
     // Render HUD overlay if active
@@ -1167,6 +1322,75 @@ static void SPFFT(float *real, float *imag, int size)
             [segmentPath fill];
         }
     }
+}
+
+// ============================================================================
+#pragma mark - CRT Monitor & Scanlines Overlay
+// ============================================================================
+
+- (void)drawCRTOverlayInRect:(NSRect)bounds
+{
+    if (!_crtEffectEnabled) return;
+
+    // 1. Color Phosphor Tinting (for Amber, Green, or C64 Cyan)
+    if (_crtProfile == SPCRTDisplayProfileAmber) {
+        [[NSColor colorWithDeviceRed:1.0f green:0.65f blue:0.10f alpha:0.18f] setFill];
+        NSRectFillUsingOperation(bounds, NSCompositingOperationColor);
+    } else if (_crtProfile == SPCRTDisplayProfileGreen) {
+        [[NSColor colorWithDeviceRed:0.20f green:1.0f blue:0.35f alpha:0.18f] setFill];
+        NSRectFillUsingOperation(bounds, NSCompositingOperationColor);
+    } else if (_crtProfile == SPCRTDisplayProfileC64Cyan) {
+        [[NSColor colorWithDeviceRed:0.25f green:0.55f blue:0.95f alpha:0.18f] setFill];
+        NSRectFillUsingOperation(bounds, NSCompositingOperationColor);
+    }
+
+    // 2. Horizontal Raster Scanlines
+    NSBezierPath *scanlines = [NSBezierPath bezierPath];
+    [scanlines setLineWidth:1.0f];
+    for (CGFloat y = 0.0f; y < bounds.size.height; y += 2.0f) {
+        [scanlines moveToPoint:NSMakePoint(0.0f, y)];
+        [scanlines lineToPoint:NSMakePoint(bounds.size.width, y)];
+    }
+    [[NSColor colorWithDeviceRed:0.0f green:0.0f blue:0.0f alpha:0.16f] setStroke];
+    [scanlines stroke];
+
+    // 3. Subtle RGB Shadow Mask / Aperture Grille (in 1084S mode)
+    if (_crtProfile == SPCRTDisplayProfile1084SColor) {
+        NSBezierPath *rgbLines = [NSBezierPath bezierPath];
+        [rgbLines setLineWidth:0.5f];
+        for (CGFloat x = 0.0f; x < bounds.size.width; x += 3.0f) {
+            [rgbLines moveToPoint:NSMakePoint(x, 0.0f)];
+            [rgbLines lineToPoint:NSMakePoint(x, bounds.size.height)];
+        }
+        [[NSColor colorWithDeviceRed:0.0f green:0.0f blue:0.0f alpha:0.08f] setStroke];
+        [rgbLines stroke];
+    }
+
+    // 4. CRT Glass Curvature Vignette (Darkened edges & corners)
+    NSGradient *vignetteTop = [[NSGradient alloc] initWithColors:@[
+        [NSColor colorWithDeviceRed:0.0f green:0.0f blue:0.0f alpha:0.35f],
+        [NSColor colorWithDeviceRed:0.0f green:0.0f blue:0.0f alpha:0.0f]
+    ]];
+    CGFloat shadowInset = 12.0f;
+    [vignetteTop drawInRect:NSMakeRect(0, 0, bounds.size.width, shadowInset) angle:90.0f];
+    [vignetteTop drawInRect:NSMakeRect(0, bounds.size.height - shadowInset, bounds.size.width, shadowInset) angle:-90.0f];
+    [vignetteTop drawInRect:NSMakeRect(0, 0, shadowInset, bounds.size.height) angle:0.0f];
+    [vignetteTop drawInRect:NSMakeRect(bounds.size.width - shadowInset, 0, shadowInset, bounds.size.height) angle:180.0f];
+
+    // 5. Curved Glass Reflection Glint (diagonal highlight across corner)
+    NSBezierPath *glassGlint = [NSBezierPath bezierPath];
+    [glassGlint moveToPoint:NSMakePoint(6.0f, 6.0f)];
+    [glassGlint lineToPoint:NSMakePoint(bounds.size.width * 0.42f, 6.0f)];
+    [glassGlint lineToPoint:NSMakePoint(6.0f, bounds.size.height * 0.42f)];
+    [glassGlint closePath];
+    [[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:0.035f] setFill];
+    [glassGlint fill];
+
+    // 6. Monitor Bezel Border
+    NSBezierPath *bezelBorder = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:6.0f yRadius:6.0f];
+    [[NSColor colorWithDeviceRed:0.0f green:0.0f blue:0.0f alpha:0.60f] setStroke];
+    [bezelBorder setLineWidth:2.0f];
+    [bezelBorder stroke];
 }
 
 // ============================================================================
