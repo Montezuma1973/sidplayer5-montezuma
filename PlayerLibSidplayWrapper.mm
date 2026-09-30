@@ -985,6 +985,111 @@ static inline float approximate_dac(int x, float kinkiness)
     int regOffset = (voice % 3) * 7;
     return regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
 }
+
+- (int) currentPattern
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer currentPattern];
+    return 0;
+}
+
+- (int) currentRow
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer currentRow];
+    int secs = [self getPlaybackSeconds];
+    return (secs * 8) % 64;
+}
+
+- (int) numRowsInCurrentPattern
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer numRowsInCurrentPattern];
+    return 64;
+}
+
+- (int) currentOrder
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer currentOrder];
+    return 0;
+}
+
+- (int) currentBPM
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer currentBPM];
+    return 125;
+}
+
+- (int) currentSpeed
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer currentSpeed];
+    return 6;
+}
+
+- (int) channelMidiNoteForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer channelMidiNoteForVoice:voice];
+    if (voice < 0 || voice >= 6) return -1;
+    if (mixer_muted[voice]) return -1;
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (!regFrame) return -1;
+    int regOffset = (voice % 3) * 7;
+    uint8_t control = regFrame->mRegisters[regOffset + 4];
+    if ((control & 0x01) == 0) return -1; // Gate off
+    uint16_t freq = regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
+    return SPSidMidiNoteForFrequency(freq);
+}
+
+- (int) channelVolumeForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer channelVolumeForVoice:voice];
+    if (voice < 0 || voice >= 6) return 0;
+    if (mixer_muted[voice]) return 0;
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (!regFrame) return 0;
+    int regOffset = (voice % 3) * 7;
+    uint8_t control = regFrame->mRegisters[regOffset + 4];
+    if ((control & 0x01) == 0) return 0;
+    uint8_t susRel = regFrame->mRegisters[regOffset + 6];
+    uint8_t sustain = (susRel >> 4) & 0x0F;
+    return (int)(sustain * 4.26f); // 0..15 -> 0..64
+}
+
+- (NSString*) channelEffectForVoice:(int) voice
+{
+    if (mIsModActive && mModPlayer) return [mModPlayer channelEffectForVoice:voice];
+    if (voice < 0 || voice >= 6) return @"...";
+    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (!regFrame) return @"...";
+    int regOffset = (voice % 3) * 7;
+    uint16_t pw = (regFrame->mRegisters[regOffset + 2] | (regFrame->mRegisters[regOffset + 3] << 8)) & 0x0FFF;
+    if (pw > 0) {
+        return [NSString stringWithFormat:@"P%02X", pw >> 4];
+    }
+    uint8_t filt = regFrame->mRegisters[0x18] >> 4;
+    if (filt > 0) {
+        return [NSString stringWithFormat:@"F%02X", regFrame->mRegisters[0x16]];
+    }
+    return @"...";
+}
+
+- (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx
+{
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer getTrackerCellForChannel:ch row:row note:outNote ins:outIns vol:outVol fx:outFx];
+        return;
+    }
+    int curR = [self currentRow];
+    if (row == curR) {
+        *outNote = [self channelNoteForVoice:ch];
+        *outIns = [self channelInstrumentForVoice:ch];
+        int v = [self channelVolumeForVoice:ch];
+        *outVol = (v > 0) ? [NSString stringWithFormat:@"%02d", v] : @"..";
+        *outFx = [self channelEffectForVoice:ch];
+    } else {
+        *outNote = @"---";
+        *outIns = @"..";
+        *outVol = @"..";
+        *outFx = @"...";
+    }
+}
 /* FIXME: FILTER SETTINGS?!
  // ----------------------------------------------------------------------------
  void PlayerLibSidplay::setFilterSettings(sid_filter_t* filterSettings)

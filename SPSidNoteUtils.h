@@ -41,4 +41,21 @@ static const char *SPSidNoteStringForFrequency(uint16_t frequency)
     return "";
 }
 
+static inline int SPSidMidiNoteForFrequency(uint16_t frequency)
+{
+    int lowerstep;
+    int higherstep;
+
+    for (int i = 0; i < sSPSidNoteCount; i++)
+    {
+        lowerstep = (i > 0) ? (sSPSidNoteMap[i].frequency - sSPSidNoteMap[i - 1].frequency) : sSPSidNoteMap[i].frequency;
+        higherstep = (i < (sSPSidNoteCount - 1)) ? (sSPSidNoteMap[i + 1].frequency - sSPSidNoteMap[i].frequency) : (0xffff - sSPSidNoteMap[i].frequency);
+
+        if (frequency >= (sSPSidNoteMap[i].frequency - lowerstep / 2) && frequency < (sSPSidNoteMap[i].frequency + higherstep / 2))
+            return 24 + i; // 24 = C-1 in MIDI
+    }
+
+    return -1;
+}
+
 #endif

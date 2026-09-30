@@ -1,5 +1,6 @@
 #import "SPSpectrumView.h"
 #import "SPThemeManager.h"
+#import "SPPlayerWindow.h"
 #import <math.h>
 
 static const int kSpectrumFFTSize = 1024;
@@ -42,6 +43,17 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
     // HUD overlay state
     NSTimeInterval _hudDisplayUntil;
     NSString *_hudText;
+
+    // Piano roll waterfall state
+    float _waterfallScrollY;
+    struct {
+        int channel;
+        int midiNote;
+        float y;
+        float height;
+        float velocity;
+    } _waterfallNotes[128];
+    int _waterfallCount;
 }
 
 // ----------------------------------------------------------------------------
@@ -98,7 +110,7 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
     _hudText = @"";
 
     NSInteger savedMode = [[NSUserDefaults standardUserDefaults] integerForKey:kRetroVisualizerModePrefKey];
-    if (savedMode < 0 || savedMode > 4) {
+    if (savedMode < 0 || savedMode > 6) {
         savedMode = SPRetroVisualizerModeAuto;
     }
     _visualizerMode = (SPRetroVisualizerMode)savedMode;
@@ -163,7 +175,7 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
 - (void)cycleVisualizerMode
 // ----------------------------------------------------------------------------
 {
-    SPRetroVisualizerMode nextMode = (SPRetroVisualizerMode)((_visualizerMode + 1) % 5);
+    SPRetroVisualizerMode nextMode = (SPRetroVisualizerMode)((_visualizerMode + 1) % 7);
     [self setVisualizerMode:nextMode];
 }
 
@@ -224,6 +236,12 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
             break;
         case SPRetroVisualizerModeSpectrum:
             name = @"EQUALIZER SPECTRUM";
+            break;
+        case SPRetroVisualizerModeTracker:
+            name = @"LIVE TRACKER PATTERN MATRIX";
+            break;
+        case SPRetroVisualizerModePianoRoll:
+            name = @"RETRO PIANO ROLL WATERFALL";
             break;
     }
     _hudText = [NSString stringWithFormat:@"%@  •  Click to Switch", name];
@@ -295,10 +313,12 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
         @"Amiga Boing Ball (1984 Demo)",
         @"Commodore Datasette (C-60 Tape)",
         @"Commodore 1541 (5.25\" Floppy)",
-        @"Equalizer Spectrum Bars"
+        @"Equalizer Spectrum Bars",
+        @"Tracker Pattern Matrix (ProTracker / FastTracker)",
+        @"Retro Piano Roll Note Waterfall"
     ];
 
-    for (NSInteger i = 0; i < 5; i++) {
+    for (NSInteger i = 0; i < 7; i++) {
         NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:titles[i]
                                                       action:@selector(selectModeFromMenu:)
                                                keyEquivalent:@""];
@@ -598,12 +618,56 @@ static void SPFFT(float *real, float *imag, int size)
         } else {
             _driveFlicker = _driveFlicker * 0.85f;
         }
+
+        // Advance Piano Roll Waterfall
+        _waterfallScrollY += 3.2f;
+        for (int i = 0; i < _waterfallCount; i++) {
+            _waterfallNotes[i].y += 3.2f;
+        }
+        int writeIdx = 0;
+        for (int i = 0; i < _waterfallCount; i++) {
+            if (_waterfallNotes[i].y < height + 80.0f) {
+                if (writeIdx != i) {
+                    _waterfallNotes[writeIdx] = _waterfallNotes[i];
+                }
+                writeIdx++;
+            }
+        }
+        _waterfallCount = writeIdx;
+
+        if (_ownerWindow) {
+            int numCh = [_ownerWindow activeChannelCount];
+            for (int ch = 0; ch < numCh && ch < 8; ch++) {
+                int midi = [_ownerWindow trackerMidiNoteForVoice:ch];
+                if (midi >= 0) {
+                    BOOL extended = NO;
+                    for (int i = _waterfallCount - 1; i >= 0 && i >= _waterfallCount - 8; i--) {
+                        if (_waterfallNotes[i].channel == ch && _waterfallNotes[i].midiNote == midi && _waterfallNotes[i].y < 22.0f) {
+                            _waterfallNotes[i].height += 3.2f;
+                            extended = YES;
+                            break;
+                        }
+                    }
+                    if (!extended && _waterfallCount < 128) {
+                        _waterfallNotes[_waterfallCount].channel = ch;
+                        _waterfallNotes[_waterfallCount].midiNote = midi;
+                        _waterfallNotes[_waterfallCount].y = 0.0f;
+                        _waterfallNotes[_waterfallCount].height = 12.0f;
+                        _waterfallNotes[_waterfallCount].velocity = [_ownerWindow voiceVUPeakForVoice:ch];
+                        _waterfallCount++;
+                    }
+                }
+            }
+        }
     } else {
         // When stopped, gently rest
         _ballSquash = _ballSquash * 0.92f + 1.0f * 0.08f;
         _ballVY = 0.0f;
         _ballY = _ballY * 0.95f + (yFloor - 8.0f) * 0.05f;
         _driveFlicker = _driveFlicker * 0.80f;
+        if (_waterfallCount > 0) {
+            _waterfallCount = 0;
+        }
     }
 
     _ballSquash += (1.0f - _ballSquash) * 0.16f;
@@ -632,6 +696,12 @@ static void SPFFT(float *real, float *imag, int size)
             break;
         case SPRetroVisualizerModeFloppy:
             [self drawFloppyInRect:bounds];
+            break;
+        case SPRetroVisualizerModeTracker:
+            [self drawTrackerPatternInRect:bounds];
+            break;
+        case SPRetroVisualizerModePianoRoll:
+            [self drawPianoRollInRect:bounds];
             break;
         case SPRetroVisualizerModeSpectrum:
         default:
@@ -1545,6 +1615,518 @@ static void SPFFT(float *real, float *imag, int size)
     [pill stroke];
 
     [_hudText drawAtPoint:NSMakePoint(pillX + padX, pillY + padY) withAttributes:hudAttr];
+}
+
+// ============================================================================
+#pragma mark - Live Tracker Pattern Matrix
+// ============================================================================
+
+- (void)drawTrackerPatternInRect:(NSRect)bounds
+{
+    SPThemeManager *tm = [SPThemeManager sharedManager];
+    NSColor *bgColor;
+    NSColor *textColor;
+    NSColor *dimColor;
+    NSColor *accentColor = [tm accentColor] ?: [NSColor controlAccentColor];
+
+    switch (tm.currentTheme) {
+        case SPAppThemeC64:
+            bgColor = [NSColor colorWithCalibratedRed:0.06f green:0.04f blue:0.18f alpha:1.0f];
+            textColor = [NSColor colorWithCalibratedRed:0.65f green:0.65f blue:1.0f alpha:1.0f];
+            dimColor = [NSColor colorWithCalibratedRed:0.35f green:0.35f blue:0.65f alpha:1.0f];
+            break;
+        case SPAppThemeWorkbench13:
+            bgColor = [NSColor colorWithCalibratedRed:0.0f green:0.12f blue:0.32f alpha:1.0f];
+            textColor = [NSColor whiteColor];
+            dimColor = [NSColor colorWithCalibratedRed:0.4f green:0.6f blue:0.85f alpha:1.0f];
+            break;
+        case SPAppThemeWorkbench31:
+            bgColor = [NSColor colorWithCalibratedRed:0.12f green:0.12f blue:0.14f alpha:1.0f];
+            textColor = [NSColor colorWithCalibratedWhite:0.92f alpha:1.0f];
+            dimColor = [NSColor colorWithCalibratedWhite:0.55f alpha:1.0f];
+            break;
+        case SPAppThemeSystem:
+        default:
+            bgColor = [NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:1.0f];
+            textColor = [NSColor colorWithCalibratedWhite:0.90f alpha:1.0f];
+            dimColor = [NSColor colorWithCalibratedWhite:0.45f alpha:1.0f];
+            break;
+    }
+
+    [bgColor setFill];
+    NSRectFill(bounds);
+
+    NSFont *monoFont = [NSFont fontWithName:@"Menlo-Bold" size:10.0f] ?: [NSFont monospacedSystemFontOfSize:10.0f weight:NSFontWeightBold];
+    NSFont *smallMono = [NSFont fontWithName:@"Menlo" size:8.5f] ?: [NSFont monospacedSystemFontOfSize:8.5f weight:NSFontWeightRegular];
+    NSFont *headerFont = [NSFont boldSystemFontOfSize:9.0f];
+
+    SPPlayerWindow *win = [self.ownerWindow isKindOfClass:[SPPlayerWindow class]] ? (SPPlayerWindow *)self.ownerWindow : nil;
+    int numChannels = win ? [win activeChannelCount] : (_isMod ? 4 : 3);
+    if (numChannels < 1) numChannels = 1;
+    if (numChannels > 8) numChannels = 8;
+
+    int curPos = win ? [win trackerOrder] : 0;
+    int curPat = win ? [win trackerPattern] : 0;
+    int curRow = win ? [win trackerRow] : 0;
+    int totalRows = win ? [win trackerNumRows] : 64;
+    int bpm = win ? [win trackerBPM] : 125;
+    int speed = win ? [win trackerSpeed] : 6;
+
+    // 1. Top Tracker Header Bar (height: 22px)
+    NSRect topHeaderRect = NSMakeRect(0, 0, bounds.size.width, 22.0f);
+    [[NSColor colorWithCalibratedWhite:0.0f alpha:0.35f] setFill];
+    NSRectFill(topHeaderRect);
+    [[NSColor colorWithCalibratedWhite:1.0f alpha:0.08f] setFill];
+    NSRectFill(NSMakeRect(0, 21.0f, bounds.size.width, 1.0f));
+
+    // Title / Tracker Info:
+    NSString *trackerInfo = [NSString stringWithFormat:@"POS %02d   PAT %02d   ROW %02d/%02d   BPM %d   SPD %d",
+                             curPos, curPat, curRow, totalRows, bpm, speed];
+    NSDictionary *infoAttrs = @{NSFontAttributeName: headerFont, NSForegroundColorAttributeName: textColor};
+    [trackerInfo drawAtPoint:NSMakePoint(10.0f, 5.0f) withAttributes:infoAttrs];
+
+    // Hardware Silicon Chip Badge on right
+    NSString *chipLabel = _isMod ? [NSString stringWithFormat:@"PAULA 8364 • %d CH", numChannels] : (_chipModel ?: @"MOS 6581");
+    NSRect chipRect = NSMakeRect(bounds.size.width - 130.0f, 3.0f, 122.0f, 16.0f);
+    [self drawSiliconChipBadgeInRect:chipRect model:chipLabel isMod:_isMod];
+
+    // 2. Channel Column Headers (y: 22px, height: 22px)
+    CGFloat rowNumColWidth = 44.0f;
+    CGFloat availWidth = bounds.size.width - rowNumColWidth;
+    CGFloat colWidth = availWidth / (CGFloat)numChannels;
+    CGFloat colHeaderY = 22.0f;
+    CGFloat colHeaderH = 22.0f;
+
+    NSRect colHeaderRect = NSMakeRect(0, colHeaderY, bounds.size.width, colHeaderH);
+    [[NSColor colorWithCalibratedWhite:0.0f alpha:0.25f] setFill];
+    NSRectFill(colHeaderRect);
+    [[NSColor colorWithCalibratedWhite:1.0f alpha:0.08f] setFill];
+    NSRectFill(NSMakeRect(0, colHeaderY + colHeaderH - 1.0f, bounds.size.width, 1.0f));
+
+    // Draw "ROW" label
+    NSDictionary *rowHdrAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: dimColor};
+    [@"ROW" drawAtPoint:NSMakePoint(8.0f, colHeaderY + 5.0f) withAttributes:rowHdrAttrs];
+
+    for (int ch = 0; ch < numChannels; ch++) {
+        CGFloat cx = rowNumColWidth + ch * colWidth;
+        BOOL isMuted = win ? [win isVoiceMuted:ch] : NO;
+        BOOL isSoloed = win ? [win isVoiceSoloed:ch] : NO;
+        float vu = win ? [win voiceVUPeakForVoice:ch] : 0.0f;
+
+        NSString *chTitle;
+        if (_isMod) {
+            const char *pan = (ch % 4 == 0 || ch % 4 == 3) ? "L" : "R";
+            chTitle = [NSString stringWithFormat:@"CH %d (%s)", ch + 1, pan];
+        } else if (numChannels > 3) {
+            chTitle = [NSString stringWithFormat:@"S%d-V%d", (ch < 3) ? 1 : 2, (ch % 3) + 1];
+        } else {
+            chTitle = [NSString stringWithFormat:@"VOICE %d", ch + 1];
+        }
+
+        NSColor *chColor = isMuted ? [NSColor colorWithCalibratedRed:0.9f green:0.3f blue:0.3f alpha:1.0f] :
+                           (isSoloed ? [NSColor colorWithCalibratedRed:1.0f green:0.8f blue:0.2f alpha:1.0f] : accentColor);
+        NSDictionary *chAttrs = @{NSFontAttributeName: headerFont, NSForegroundColorAttributeName: chColor};
+        [chTitle drawAtPoint:NSMakePoint(cx + 6.0f, colHeaderY + 4.0f) withAttributes:chAttrs];
+
+        // Mute / Solo badges
+        if (isMuted) {
+            NSDictionary *mAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.3f blue:0.3f alpha:1.0f]};
+            [@"[M]" drawAtPoint:NSMakePoint(cx + colWidth - 44.0f, colHeaderY + 4.0f) withAttributes:mAttrs];
+        } else if (isSoloed) {
+            NSDictionary *sAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.8f blue:0.2f alpha:1.0f]};
+            [@"[S]" drawAtPoint:NSMakePoint(cx + colWidth - 44.0f, colHeaderY + 4.0f) withAttributes:sAttrs];
+        }
+
+        // Mini VU bar in header
+        CGFloat vuBarX = cx + colWidth - 22.0f;
+        CGFloat vuBarW = 16.0f;
+        CGFloat vuBarH = 6.0f;
+        NSRect vuBgRect = NSMakeRect(vuBarX, colHeaderY + 8.0f, vuBarW, vuBarH);
+        [[NSColor colorWithCalibratedWhite:0.0f alpha:0.4f] setFill];
+        NSRectFill(vuBgRect);
+        if (vu > 0.05f && !isMuted) {
+            NSRect vuFillRect = NSMakeRect(vuBarX, colHeaderY + 8.0f, vuBarW * MIN(1.0f, vu), vuBarH);
+            [[NSColor colorWithCalibratedRed:0.2f green:0.85f blue:0.4f alpha:1.0f] setFill];
+            NSRectFill(vuFillRect);
+        }
+
+        // Vertical column separator
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.06f] setFill];
+        NSRectFill(NSMakeRect(cx, colHeaderY, 1.0f, bounds.size.height - colHeaderY));
+    }
+
+    // 3. Pattern Rows (Center focused active row)
+    CGFloat rowsStartY = colHeaderY + colHeaderH;
+    CGFloat rowsAvailHeight = bounds.size.height - rowsStartY;
+    if (rowsAvailHeight < 30.0f) return;
+
+    CGFloat rowH = 15.0f;
+    int visibleRows = (int)(rowsAvailHeight / rowH);
+    int halfVisible = visibleRows / 2;
+    CGFloat centerY = rowsStartY + (halfVisible * rowH);
+
+    // Active Row Highlight Bar
+    NSRect cursorRect = NSMakeRect(0, centerY, bounds.size.width, rowH);
+    [[NSColor colorWithCalibratedRed:0.18f green:0.45f blue:0.85f alpha:0.32f] setFill];
+    NSRectFill(cursorRect);
+    [[NSColor colorWithCalibratedRed:0.35f green:0.65f blue:1.0f alpha:0.75f] setStroke];
+    NSFrameRectWithWidth(cursorRect, 1.0f);
+
+    for (int offset = -halfVisible; offset <= halfVisible; offset++) {
+        int r = curRow + offset;
+        if (r < 0 || r >= totalRows) continue;
+
+        CGFloat ry = centerY + (offset * rowH);
+        BOOL isActive = (offset == 0);
+
+        // Row number column
+        NSString *rStr = isActive ? [NSString stringWithFormat:@"▶ %02d", r] : [NSString stringWithFormat:@"  %02d", r];
+        NSColor *rColor = isActive ? [NSColor whiteColor] : dimColor;
+        NSDictionary *rAttrs = @{NSFontAttributeName: isActive ? monoFont : smallMono, NSForegroundColorAttributeName: rColor};
+        [rStr drawAtPoint:NSMakePoint(6.0f, ry + 1.0f) withAttributes:rAttrs];
+
+        // Draw cells for each channel
+        for (int ch = 0; ch < numChannels; ch++) {
+            CGFloat cx = rowNumColWidth + ch * colWidth;
+            NSString *note = @"---";
+            NSString *ins = @"..";
+            NSString *vol = @"..";
+            NSString *fx = @"...";
+
+            if (win) {
+                [win getTrackerCellForChannel:ch row:r note:&note ins:&ins vol:&vol fx:&fx];
+            }
+
+            BOOL isMuted = win ? [win isVoiceMuted:ch] : NO;
+            float alpha = isMuted ? 0.35f : (isActive ? 1.0f : (1.0f - fabsf((float)offset) / (float)(halfVisible + 2) * 0.55f));
+
+            // Note
+            NSColor *noteColor;
+            if ([note isEqualToString:@"---"]) {
+                noteColor = [dimColor colorWithAlphaComponent:alpha * 0.5f];
+            } else if (isActive) {
+                noteColor = [NSColor colorWithCalibratedRed:0.3f green:0.95f blue:1.0f alpha:1.0f];
+            } else {
+                noteColor = [NSColor colorWithCalibratedRed:0.25f green:0.75f blue:0.95f alpha:alpha];
+            }
+
+            // Instrument
+            NSColor *insColor = [ins isEqualToString:@".."] ? [dimColor colorWithAlphaComponent:alpha * 0.4f] :
+                                [NSColor colorWithCalibratedRed:1.0f green:0.80f blue:0.25f alpha:alpha];
+
+            // Volume
+            NSColor *volColor = [vol isEqualToString:@".."] ? [dimColor colorWithAlphaComponent:alpha * 0.4f] :
+                                [NSColor colorWithCalibratedRed:0.35f green:0.95f blue:0.5f alpha:alpha];
+
+            // Effect
+            NSColor *fxColor = [fx isEqualToString:@"..."] ? [dimColor colorWithAlphaComponent:alpha * 0.4f] :
+                               [NSColor colorWithCalibratedRed:1.0f green:0.55f blue:0.35f alpha:alpha];
+
+            CGFloat cellPad = 6.0f;
+            NSDictionary *noteAttrs = @{NSFontAttributeName: isActive ? monoFont : smallMono, NSForegroundColorAttributeName: noteColor};
+            NSDictionary *insAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: insColor};
+            NSDictionary *volAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: volColor};
+            NSDictionary *fxAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: fxColor};
+
+            [note drawAtPoint:NSMakePoint(cx + cellPad, ry + 1.0f) withAttributes:noteAttrs];
+            if (colWidth > 90.0f) {
+                [ins drawAtPoint:NSMakePoint(cx + cellPad + 30.0f, ry + 1.0f) withAttributes:insAttrs];
+                [vol drawAtPoint:NSMakePoint(cx + cellPad + 50.0f, ry + 1.0f) withAttributes:volAttrs];
+                [fx drawAtPoint:NSMakePoint(cx + cellPad + 70.0f, ry + 1.0f) withAttributes:fxAttrs];
+            } else if (colWidth > 60.0f) {
+                [ins drawAtPoint:NSMakePoint(cx + cellPad + 28.0f, ry + 1.0f) withAttributes:insAttrs];
+                [fx drawAtPoint:NSMakePoint(cx + cellPad + 46.0f, ry + 1.0f) withAttributes:fxAttrs];
+            }
+        }
+    }
+}
+
+// ============================================================================
+#pragma mark - Retro Piano Roll Waterfall
+// ============================================================================
+
+- (void)drawPianoRollInRect:(NSRect)bounds
+{
+    // Background based on theme
+    SPThemeManager *tm = [SPThemeManager sharedManager];
+    NSColor *bgColor;
+    switch (tm.currentTheme) {
+        case SPAppThemeC64:
+            bgColor = [NSColor colorWithCalibratedRed:0.04f green:0.03f blue:0.14f alpha:1.0f];
+            break;
+        case SPAppThemeWorkbench13:
+            bgColor = [NSColor colorWithCalibratedRed:0.0f green:0.10f blue:0.28f alpha:1.0f];
+            break;
+        case SPAppThemeWorkbench31:
+            bgColor = [NSColor colorWithCalibratedRed:0.10f green:0.10f blue:0.12f alpha:1.0f];
+            break;
+        case SPAppThemeSystem:
+        default:
+            bgColor = [NSColor colorWithCalibratedRed:0.04f green:0.05f blue:0.07f alpha:1.0f];
+            break;
+    }
+
+    [bgColor setFill];
+    NSRectFill(bounds);
+
+    SPPlayerWindow *win = [self.ownerWindow isKindOfClass:[SPPlayerWindow class]] ? (SPPlayerWindow *)self.ownerWindow : nil;
+    int numChannels = win ? [win activeChannelCount] : (_isMod ? 4 : 3);
+    if (numChannels < 1) numChannels = 1;
+    if (numChannels > 8) numChannels = 8;
+
+    // Distinct channel colors for waterfall and keyboard keys
+    static const float sChRGB[8][3] = {
+        { 0.00f, 0.90f, 1.00f }, // CH 1: Electric Cyan
+        { 1.00f, 0.68f, 0.00f }, // CH 2: Warm Amber
+        { 1.00f, 0.15f, 0.35f }, // CH 3: Neon Magenta/Rose
+        { 0.00f, 0.92f, 0.45f }, // CH 4: Emerald Green
+        { 0.85f, 0.20f, 1.00f }, // CH 5: Bright Violet
+        { 1.00f, 0.45f, 0.15f }, // CH 6: Sunset Coral
+        { 0.10f, 0.85f, 0.85f }, // CH 7: Mint Teal
+        { 1.00f, 0.88f, 0.20f }  // CH 8: Radiant Gold
+    };
+
+    // Keyboard configuration: 4 octaves (C2 to B5: MIDI 36..83 = 48 keys, 28 white keys)
+    const int kStartMidi = 36; // C2
+    const int kTotalKeys = 48; // 4 octaves
+    const int kWhiteKeyCount = 28;
+    const CGFloat keyboardH = 50.0f;
+    const CGFloat keyboardY = bounds.size.height - keyboardH;
+    const CGFloat wkW = bounds.size.width / (CGFloat)kWhiteKeyCount;
+    const CGFloat bkW = wkW * 0.62f;
+    const CGFloat bkH = keyboardH * 0.64f;
+
+    static const int sWhiteKeyIdxInOctave[12] = { 0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6 };
+    static const BOOL sIsBlackKey[12] = { NO, YES, NO, YES, NO, NO, YES, NO, YES, NO, YES, NO };
+    static const char *sKeyNoteNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
+    // Active MIDI notes per channel
+    int activeMidi[8];
+    int activeVoicesCount = 0;
+    for (int ch = 0; ch < 8; ch++) {
+        activeMidi[ch] = (win && ch < numChannels) ? [win trackerMidiNoteForVoice:ch] : -1;
+        if (activeMidi[ch] >= 0) activeVoicesCount++;
+    }
+
+    // 1. Top Info Header (y: 0, height: 22px)
+    NSRect topRect = NSMakeRect(0, 0, bounds.size.width, 22.0f);
+    [[NSColor colorWithCalibratedWhite:0.0f alpha:0.35f] setFill];
+    NSRectFill(topRect);
+    [[NSColor colorWithCalibratedWhite:1.0f alpha:0.08f] setFill];
+    NSRectFill(NSMakeRect(0, 21.0f, bounds.size.width, 1.0f));
+
+    NSFont *headerFont = [NSFont boldSystemFontOfSize:9.0f];
+    NSFont *smallMono = [NSFont fontWithName:@"Menlo" size:8.0f] ?: [NSFont monospacedSystemFontOfSize:8.0f weight:NSFontWeightRegular];
+    NSFont *keyFont = [NSFont boldSystemFontOfSize:8.0f];
+
+    int bpm = win ? [win trackerBPM] : 125;
+    NSString *hdrStr = [NSString stringWithFormat:@"PIANO ROLL WATERFALL   •   ACTIVE VOICES: %d   •   BPM %d", activeVoicesCount, bpm];
+    NSDictionary *hdrAttrs = @{NSFontAttributeName: headerFont, NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.9f alpha:1.0f]};
+    [hdrStr drawAtPoint:NSMakePoint(10.0f, 5.0f) withAttributes:hdrAttrs];
+
+    NSString *chipLabel = _isMod ? [NSString stringWithFormat:@"PAULA 8364 • %d CH", numChannels] : (_chipModel ?: @"MOS 6581");
+    NSRect chipRect = NSMakeRect(bounds.size.width - 130.0f, 3.0f, 122.0f, 16.0f);
+    [self drawSiliconChipBadgeInRect:chipRect model:chipLabel isMod:_isMod];
+
+    // 2. Vertical Lane Stripes & Measure Lines (above keyboard)
+    CGFloat waterfallTop = 22.0f;
+    CGFloat waterfallH = keyboardY - waterfallTop;
+
+    // Vertical key lanes
+    for (int w = 0; w < kWhiteKeyCount; w++) {
+        CGFloat x = w * wkW;
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.02f] setFill];
+        NSRectFill(NSMakeRect(x, waterfallTop, wkW - 1.0f, waterfallH));
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.04f] setFill];
+        NSRectFill(NSMakeRect(x + wkW - 1.0f, waterfallTop, 1.0f, waterfallH));
+    }
+
+    // Scrolling measure beat lines
+    CGFloat beatSpacing = 28.0f;
+    CGFloat beatOffset = fmodf(_waterfallScrollY, beatSpacing);
+    for (CGFloat by = waterfallTop + beatOffset; by < keyboardY; by += beatSpacing) {
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.05f] setFill];
+        NSRectFill(NSMakeRect(0, by, bounds.size.width, 1.0f));
+    }
+
+    // 3. Falling Note Waterfall Ribbons
+    for (int i = 0; i < _waterfallCount; i++) {
+        int ch = _waterfallNotes[i].channel;
+        int n = _waterfallNotes[i].midiNote;
+        if (n < kStartMidi || n >= kStartMidi + kTotalKeys) continue;
+
+        int oct = (n - kStartMidi) / 12;
+        int semi = (n - kStartMidi) % 12;
+        BOOL isBlack = sIsBlackKey[semi];
+        int wKey = oct * 7 + sWhiteKeyIdxInOctave[semi];
+
+        CGFloat rx, rw;
+        if (isBlack) {
+            rx = (wKey + 1) * wkW - (bkW * 0.5f);
+            rw = bkW;
+        } else {
+            rx = wKey * wkW + 1.0f;
+            rw = wkW - 2.0f;
+        }
+
+        CGFloat ry = keyboardY - _waterfallNotes[i].y - _waterfallNotes[i].height;
+        CGFloat rh = _waterfallNotes[i].height;
+
+        // Clip to waterfall viewport
+        if (ry + rh < waterfallTop) continue;
+        if (ry < waterfallTop) {
+            rh -= (waterfallTop - ry);
+            ry = waterfallTop;
+        }
+        if (ry + rh > keyboardY) {
+            rh = keyboardY - ry;
+        }
+        if (rh <= 1.0f) continue;
+
+        NSRect noteRect = NSMakeRect(rx, ry, rw, rh);
+        NSBezierPath *notePath = [NSBezierPath bezierPathWithRoundedRect:noteRect xRadius:2.0f yRadius:2.0f];
+
+        int cIdx = ch % 8;
+        NSColor *chColor = [NSColor colorWithCalibratedRed:sChRGB[cIdx][0] green:sChRGB[cIdx][1] blue:sChRGB[cIdx][2] alpha:0.90f];
+        [chColor setFill];
+        [notePath fill];
+
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.35f] setStroke];
+        [notePath setLineWidth:0.8f];
+        [notePath stroke];
+
+        // Draw note text inside ribbon if tall enough
+        if (rh > 13.0f && rw > 14.0f) {
+            int keyOct = oct + 2;
+            NSString *lbl = [NSString stringWithFormat:@"%s%d", sKeyNoteNames[semi], keyOct];
+            NSDictionary *lblAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: [NSColor blackColor]};
+            [lbl drawAtPoint:NSMakePoint(rx + 2.0f, ry + (rh - 10.0f) * 0.5f) withAttributes:lblAttrs];
+        }
+    }
+
+    // 4. Keyboard Baseline Flare for Active Notes
+    for (int ch = 0; ch < numChannels; ch++) {
+        int n = activeMidi[ch];
+        if (n >= kStartMidi && n < kStartMidi + kTotalKeys) {
+            int oct = (n - kStartMidi) / 12;
+            int semi = (n - kStartMidi) % 12;
+            BOOL isBlack = sIsBlackKey[semi];
+            int wKey = oct * 7 + sWhiteKeyIdxInOctave[semi];
+
+            CGFloat kx = isBlack ? ((wKey + 1) * wkW - (bkW * 0.5f)) : (wKey * wkW);
+            CGFloat kw = isBlack ? bkW : wkW;
+
+            int cIdx = ch % 8;
+            NSColor *glowCol = [NSColor colorWithCalibratedRed:sChRGB[cIdx][0] green:sChRGB[cIdx][1] blue:sChRGB[cIdx][2] alpha:0.45f];
+            [glowCol setFill];
+            NSRect flareRect = NSMakeRect(kx - 3.0f, keyboardY - 8.0f, kw + 6.0f, 10.0f);
+            [[NSBezierPath bezierPathWithRoundedRect:flareRect xRadius:3.0f yRadius:3.0f] fill];
+        }
+    }
+
+    // 5. Piano Keyboard Keys
+    // First: Draw all 28 White Keys
+    for (int w = 0; w < kWhiteKeyCount; w++) {
+        CGFloat kx = w * wkW;
+        NSRect wKeyRect = NSMakeRect(kx, keyboardY, wkW - 1.0f, keyboardH);
+
+        // Find which octave and white key this corresponds to
+        int oct = w / 7;
+        int wInOct = w % 7;
+        int semiInOct = 0;
+        const int sWhiteToSemi[7] = { 0, 2, 4, 5, 7, 9, 11 };
+        semiInOct = sWhiteToSemi[wInOct];
+        int midi = kStartMidi + oct * 12 + semiInOct;
+
+        // Check if any channel is actively playing this key
+        int activeCh = -1;
+        for (int ch = 0; ch < numChannels; ch++) {
+            if (activeMidi[ch] == midi) {
+                activeCh = ch;
+                break;
+            }
+        }
+
+        NSBezierPath *keyPath = [NSBezierPath bezierPathWithRoundedRect:wKeyRect xRadius:2.0f yRadius:2.0f];
+        if (activeCh >= 0) {
+            int cIdx = activeCh % 8;
+            NSColor *hitColor = [NSColor colorWithCalibratedRed:sChRGB[cIdx][0] green:sChRGB[cIdx][1] blue:sChRGB[cIdx][2] alpha:0.95f];
+            [hitColor setFill];
+            [keyPath fill];
+            [[NSColor whiteColor] setStroke];
+            [keyPath setLineWidth:1.2f];
+            [keyPath stroke];
+
+            // Note label on depressed key
+            int keyOct = oct + 2;
+            NSString *kName = [NSString stringWithFormat:@"%s%d", sKeyNoteNames[semiInOct], keyOct];
+            NSMutableParagraphStyle *centerStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
+            centerStyle.alignment = NSTextAlignmentCenter;
+            NSDictionary *kAttrs = @{NSFontAttributeName: keyFont, NSForegroundColorAttributeName: [NSColor blackColor], NSParagraphStyleAttributeName: centerStyle};
+            [kName drawInRect:NSMakeRect(kx, keyboardY + keyboardH - 14.0f, wkW - 1.0f, 12.0f) withAttributes:kAttrs];
+        } else {
+            // Inactive white key: ivory gradient
+            NSGradient *ivory = [[NSGradient alloc] initWithStartingColor:[NSColor colorWithCalibratedWhite:0.95f alpha:1.0f]
+                                                              endingColor:[NSColor colorWithCalibratedWhite:0.82f alpha:1.0f]];
+            [ivory drawInBezierPath:keyPath angle:-90.0f];
+            [[NSColor colorWithCalibratedWhite:0.55f alpha:0.6f] setStroke];
+            [keyPath setLineWidth:0.8f];
+            [keyPath stroke];
+
+            // Mark C keys with label
+            if (semiInOct == 0) {
+                int keyOct = oct + 2;
+                NSString *cLabel = [NSString stringWithFormat:@"C%d", keyOct];
+                NSMutableParagraphStyle *centerStyle = [[NSMutableParagraphStyle defaultParagraphStyle] mutableCopy];
+                centerStyle.alignment = NSTextAlignmentCenter;
+                NSDictionary *cAttrs = @{NSFontAttributeName: smallMono, NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.4f alpha:1.0f], NSParagraphStyleAttributeName: centerStyle};
+                [cLabel drawInRect:NSMakeRect(kx, keyboardY + keyboardH - 12.0f, wkW - 1.0f, 10.0f) withAttributes:cAttrs];
+            }
+        }
+    }
+
+    // Second: Draw all Black Keys on top
+    for (int oct = 0; oct < 4; oct++) {
+        for (int semi = 0; semi < 12; semi++) {
+            if (!sIsBlackKey[semi]) continue;
+
+            int wKey = oct * 7 + sWhiteKeyIdxInOctave[semi];
+            CGFloat bx = (wKey + 1) * wkW - (bkW * 0.5f);
+            NSRect bKeyRect = NSMakeRect(bx, keyboardY, bkW, bkH);
+            int midi = kStartMidi + oct * 12 + semi;
+
+            int activeCh = -1;
+            for (int ch = 0; ch < numChannels; ch++) {
+                if (activeMidi[ch] == midi) {
+                    activeCh = ch;
+                    break;
+                }
+            }
+
+            NSBezierPath *bkPath = [NSBezierPath bezierPathWithRoundedRect:bKeyRect xRadius:2.0f yRadius:2.0f];
+            if (activeCh >= 0) {
+                int cIdx = activeCh % 8;
+                NSColor *hitColor = [NSColor colorWithCalibratedRed:sChRGB[cIdx][0] green:sChRGB[cIdx][1] blue:sChRGB[cIdx][2] alpha:0.95f];
+                [hitColor setFill];
+                [bkPath fill];
+                [[NSColor whiteColor] setStroke];
+                [bkPath setLineWidth:1.0f];
+                [bkPath stroke];
+            } else {
+                // Inactive black key: sleek ebony gradient
+                NSGradient *ebony = [[NSGradient alloc] initWithStartingColor:[NSColor colorWithCalibratedWhite:0.22f alpha:1.0f]
+                                                                  endingColor:[NSColor colorWithCalibratedWhite:0.06f alpha:1.0f]];
+                [ebony drawInBezierPath:bkPath angle:-90.0f];
+                [[NSColor colorWithCalibratedWhite:0.35f alpha:0.5f] setStroke];
+                [bkPath setLineWidth:0.8f];
+                [bkPath stroke];
+            }
+        }
+    }
+
+    // Top Keyboard Bezel Line
+    [[NSColor colorWithCalibratedWhite:0.0f alpha:0.8f] setFill];
+    NSRectFill(NSMakeRect(0, keyboardY - 1.0f, bounds.size.width, 2.0f));
 }
 
 @end

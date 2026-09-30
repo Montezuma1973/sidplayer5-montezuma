@@ -55,9 +55,18 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
   - [x] Multi-channel scrolling tracker pattern roll underneath the matrix strip.
   - [x] Audio engine integration across `SPModPlayer` (`libxmp`) and `PlayerLibSidplayWrapper` (`libsidplayfp` ReSID).
 
-- [ ] **2.2 Live Tracker Pattern View / Piano Roll**
-  - [ ] Live upward-scrolling tracker note pattern matrix (displaying notes, instruments, effects).
-  - [ ] Optional retro piano roll note waterfall.
+- [x] **2.2 Live Tracker Pattern View / Piano Roll**
+  - [x] Full-featured **Live Tracker Pattern Matrix** visualizer mode (`SPRetroVisualizerModeTracker`):
+    - FastTracker II / ProTracker / OctaMED vertical pattern matrix with active row highlight, `▶` cursor bar, and vintage monospace formatting.
+    - Full pattern event inspection per channel: Note (e.g. `C-4`), Sample/Instrument (`01`), Volume (`v64`), and Effect command (`000`, `E01`, `F06`).
+    - Tracker status header displaying `POS`, `PAT`, `ROW / TOTAL`, `BPM`, and `SPD`.
+    - Integrated silicon chip badges (`[ PAULA 8364 ]` / `[ MOS 6581 ]` / `[ 2x SID ]`), mute `[M]`, solo `[S]`, and mini LED meters per channel column.
+  - [x] **Retro Piano Roll Waterfall** visualizer mode (`SPRetroVisualizerModePianoRoll`):
+    - Synthesizer piano keyboard (4 octaves spanning C2–B5 with 28 white keys and 20 black keys).
+    - Cascading waterfall note ribbons falling downward in distinct per-channel colors (Cyan, Amber, Rose, Emerald Green, Violet, Coral, Mint, and Gold).
+    - Keyboard baseline collision effects with dynamic key press illumination, note labels (e.g. `C4`, `F#3`), and flare bursts.
+    - Active polyphony voice counter and real-time BPM indicator.
+  - [x] Integrated into the retro visualizer cycling (`V` key or click), right-click context menu, HUD overlays, and fully compatible with CRT scanlines & phosphor monitor profiles.
 
 ---
 

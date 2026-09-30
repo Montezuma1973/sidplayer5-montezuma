@@ -256,6 +256,16 @@ extern NSString* SPUrlRequestUserAgentString;
 - (NSString*) channelNoteForVoice:(int)voice;
 - (NSString*) channelInstrumentForVoice:(int)voice;
 - (int) channelPeriodForVoice:(int)voice;
+- (int) trackerPattern;
+- (int) trackerRow;
+- (int) trackerNumRows;
+- (int) trackerOrder;
+- (int) trackerBPM;
+- (int) trackerSpeed;
+- (int) trackerMidiNoteForVoice:(int)voice;
+- (int) trackerVolumeForVoice:(int)voice;
+- (NSString*) trackerEffectForVoice:(int)voice;
+- (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx;
 @end
 
 
