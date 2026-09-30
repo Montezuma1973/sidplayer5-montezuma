@@ -146,6 +146,7 @@ enum BrowserMode
 - (void) shufflePlaylist;
 - (void) startShufflePlay;
 
+@property (NS_NONATOMIC_IOSONLY, readonly, strong) SPBrowserView *browserView;
 @property (NS_NONATOMIC_IOSONLY, readonly, copy) NSArray *draggedItems;
 @property (NS_NONATOMIC_IOSONLY, readonly, strong) NSSearchField *toolbarSearchField;
 @property (NS_NONATOMIC_IOSONLY, getter=isSmartPlaylist, readonly) BOOL smartPlaylist;

@@ -32,10 +32,13 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
   - [x] Integrated silicon DIP-chip badges rendered directly across all retro visualizers (Boing Ball, Datasette Cassette, 1541 Floppy, and Spectrum Bars).
   - [x] Dynamic tooltips and status update on the bottom toolbar chip button.
 
-- [ ] **1.3 Authentic System Color Themes**
-  - [ ] Commodore 64 Classic theme (Deep blue `#40318d` / Light blue `#887ecb` borders and PETSCII accents).
-  - [ ] Amiga Workbench 1.3 theme (Iconic high-contrast blue, orange, white, and black).
-  - [ ] Amiga Workbench 3.1 theme (Clean chisel grey/charcoal aesthetics).
+- [x] **1.3 Authentic System Color Themes**
+  - [x] Commodore 64 Classic theme (Deep border purple-blue `#40318d`, screen blue `#352879`, light blue/lavender text `#a5a5ff`, VIC-II gold headers `#eeee77`).
+  - [x] Amiga Workbench 1.3 theme (Iconic high-contrast deep blue `#0055aa`, topaz orange selection `#ff8800`, crisp white `#ffffff`, and black `#000000`).
+  - [x] Amiga Workbench 3.1 theme (Clean AGA chisel grey `#aaaaaa`, 3D bevels, and Workbench blue selection `#0055aa`).
+  - [x] Modern macOS System theme (dynamic Light and Dark mode).
+  - [x] Full application styling across main window, browser outline, source list sidebar, top gradient toolbar box, voice notes panel, and retro visualizer.
+  - [x] Integrated `View -> Theme` submenu with checkmarks, keyboard shortcut (`T` to cycle), retro visualizer HUD notification overlay, and persistent user preference in `NSUserDefaults`.
 
 ---
 

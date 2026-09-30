@@ -95,7 +95,12 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 {
 	[super drawRect:dirtyRect];
 
-	[[NSColor controlBackgroundColor] setFill];
+	SPThemeManager *tm = [SPThemeManager sharedManager];
+	if (tm.currentTheme == SPAppThemeSystem) {
+		[[NSColor controlBackgroundColor] setFill];
+	} else {
+		[[tm browserBackgroundColor] setFill];
+	}
 	NSRectFill(dirtyRect);
 
 	CGFloat x = 8.0f;
@@ -109,23 +114,26 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 	CGFloat colV2X = colV1X + voiceWidth + colGap;
 	CGFloat colV3X = colV2X + voiceWidth + colGap;
 
+	NSColor* textColor = (tm.currentTheme == SPAppThemeSystem) ? [NSColor labelColor] : [tm browserTextColor];
+	NSFont* font = textAttributes[NSFontAttributeName];
+	NSDictionary* activeAttrs = @{NSFontAttributeName: font, NSForegroundColorAttributeName: textColor};
+
 	NSString* headerV1 = @"Voice 1";
 	NSString* headerV2 = @"Voice 2";
 	NSString* headerV3 = @"Voice 3";
 	NSString* muteLabel = @"Mute";
-	NSFont* font = textAttributes[NSFontAttributeName];
-	[headerV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
-	[headerV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
-	[headerV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+	[headerV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:activeAttrs];
+	[headerV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:activeAttrs];
+	[headerV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:activeAttrs];
 	for (int i = 0; i < 3; i++)
 	{
 		BOOL muted = ownerWindow ? [ownerWindow isVoiceMuted:i] : NO;
-		NSColor* muteColor = muted ? [NSColor systemRedColor] : [NSColor secondaryLabelColor];
+		NSColor* muteColor = muted ? [NSColor systemRedColor] : ((tm.currentTheme == SPAppThemeSystem) ? [NSColor secondaryLabelColor] : [tm browserSecondaryTextColor]);
 		NSDictionary* muteAttributes = @{NSFontAttributeName: font,
 										 NSForegroundColorAttributeName: muteColor};
 		NSSize muteSize = [muteLabel sizeWithAttributes:muteAttributes];
 		NSString* header = (i == 0) ? headerV1 : (i == 1) ? headerV2 : headerV3;
-		NSSize headerSize = [header sizeWithAttributes:textAttributes];
+		NSSize headerSize = [header sizeWithAttributes:activeAttrs];
 		CGFloat colX = (i == 0) ? colV1X : (i == 1) ? colV2X : colV3X;
 		CGFloat muteX = colX + headerSize.width + 8.0f;
 		[muteLabel drawAtPoint:CGPointMake(muteX, y) withAttributes:muteAttributes];
@@ -146,10 +154,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 			else if ([part hasPrefix:@"V3: "]) nowV3 = [part substringFromIndex:4];
 		}
 	}
-	[@"" drawAtPoint:CGPointMake(colNowX, y) withAttributes:textAttributes];
-	[nowV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
-	[nowV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
-	[nowV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+	[@"" drawAtPoint:CGPointMake(colNowX, y) withAttributes:activeAttrs];
+	[nowV1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:activeAttrs];
+	[nowV2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:activeAttrs];
+	[nowV3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:activeAttrs];
 	y += lineHeight;
 
 	for (NSUInteger i = 0; i < noteHistory.count; i++)
@@ -167,10 +175,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 		}
 
 		NSString* rowLabel = [NSString stringWithFormat:@"%2lu", (unsigned long)(i + 1)];
-		[rowLabel drawAtPoint:CGPointMake(colNowX, y) withAttributes:textAttributes];
-		[v1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:textAttributes];
-		[v2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:textAttributes];
-		[v3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:textAttributes];
+		[rowLabel drawAtPoint:CGPointMake(colNowX, y) withAttributes:activeAttrs];
+		[v1 drawAtPoint:CGPointMake(colV1X, y) withAttributes:activeAttrs];
+		[v2 drawAtPoint:CGPointMake(colV2X, y) withAttributes:activeAttrs];
+		[v3 drawAtPoint:CGPointMake(colV3X, y) withAttributes:activeAttrs];
 		y += lineHeight;
 	}
 }
@@ -357,6 +365,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     dispatch_async(dispatch_get_main_queue(), ^{
         [self layoutVoiceNotesView];
     });
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChangeNotification:) name:SPThemeDidChangeNotification object:nil];
+    [self setupThemeMenu];
+    [self applyCurrentTheme];
 }
 
 // ----------------------------------------------------------------------------
@@ -610,6 +622,17 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         case ' ':
             [self clickPlayPauseButton:self];
             break;
+        case 't':
+        case 'T':
+        {
+            id resp = [self firstResponder];
+            if (![resp isKindOfClass:[NSText class]]) {
+                [self cycleThemeFromMenu:self];
+                return;
+            }
+            [super keyDown:event];
+            break;
+        }
         default:
             [super keyDown:event];
     }
@@ -1684,6 +1707,153 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         
         index++;
     }
+}
+
+// ----------------------------------------------------------------------------
+- (void) setupThemeMenu
+// ----------------------------------------------------------------------------
+{
+    NSMenu *mainMenu = [NSApp mainMenu];
+    NSMenuItem *viewMenuItem = [mainMenu itemWithTitle:@"View"];
+    if (!viewMenuItem) {
+        for (NSMenuItem *item in [mainMenu itemArray]) {
+            if ([[item title] isEqualToString:@"View"] || [[item submenu] itemWithTitle:@"Show Toolbar"]) {
+                viewMenuItem = item;
+                break;
+            }
+        }
+    }
+    
+    if (viewMenuItem && viewMenuItem.submenu) {
+        NSMenu *viewMenu = viewMenuItem.submenu;
+        if ([viewMenu itemWithTitle:@"Theme"] == nil) {
+            [viewMenu addItem:[NSMenuItem separatorItem]];
+            
+            NSMenuItem *themeParentItem = [[NSMenuItem alloc] initWithTitle:@"Theme" action:nil keyEquivalent:@""];
+            NSMenu *themeMenu = [[NSMenu alloc] initWithTitle:@"Theme"];
+            
+            NSArray *themes = @[
+                @{@"title": @"System Default (macOS)", @"tag": @(SPAppThemeSystem)},
+                @{@"title": @"Commodore 64 Classic", @"tag": @(SPAppThemeC64)},
+                @{@"title": @"Amiga Workbench 1.3", @"tag": @(SPAppThemeWorkbench13)},
+                @{@"title": @"Amiga Workbench 3.1", @"tag": @(SPAppThemeWorkbench31)}
+            ];
+            
+            for (NSDictionary *t in themes) {
+                NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:t[@"title"] action:@selector(selectThemeFromMenu:) keyEquivalent:@""];
+                item.target = self;
+                item.tag = [t[@"tag"] integerValue];
+                [themeMenu addItem:item];
+            }
+            
+            [themeMenu addItem:[NSMenuItem separatorItem]];
+            NSMenuItem *cycleItem = [[NSMenuItem alloc] initWithTitle:@"Cycle Theme" action:@selector(cycleThemeFromMenu:) keyEquivalent:@"t"];
+            cycleItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+            cycleItem.target = self;
+            [themeMenu addItem:cycleItem];
+            
+            themeParentItem.submenu = themeMenu;
+            [viewMenu addItem:themeParentItem];
+        }
+    }
+    [self updateThemeMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
+- (void) updateThemeMenuChecks
+// ----------------------------------------------------------------------------
+{
+    NSMenu *mainMenu = [NSApp mainMenu];
+    NSMenuItem *viewMenuItem = [mainMenu itemWithTitle:@"View"];
+    if (!viewMenuItem) {
+        for (NSMenuItem *item in [mainMenu itemArray]) {
+            if ([[item title] isEqualToString:@"View"] || [[item submenu] itemWithTitle:@"Show Toolbar"]) {
+                viewMenuItem = item;
+                break;
+            }
+        }
+    }
+    if (viewMenuItem && viewMenuItem.submenu) {
+        NSMenuItem *themeParentItem = [viewMenuItem.submenu itemWithTitle:@"Theme"];
+        if (themeParentItem && themeParentItem.submenu) {
+            SPAppTheme current = [SPThemeManager sharedManager].currentTheme;
+            for (NSMenuItem *item in themeParentItem.submenu.itemArray) {
+                if (item.action == @selector(selectThemeFromMenu:)) {
+                    item.state = (item.tag == current) ? NSControlStateValueOn : NSControlStateValueOff;
+                }
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+- (void) applyCurrentTheme
+// ----------------------------------------------------------------------------
+{
+    SPThemeManager *tm = [SPThemeManager sharedManager];
+    NSColor *winBg = [tm windowBackgroundColor];
+    if (winBg) {
+        self.backgroundColor = winBg;
+    } else {
+        self.backgroundColor = [NSColor windowBackgroundColor];
+    }
+    self.appearance = [tm windowAppearance];
+    
+    [boxView setNeedsDisplay:YES];
+    [splitView setNeedsDisplay:YES];
+    [statusDisplay setNeedsDisplay:YES];
+    [spectrumView setNeedsDisplay:YES];
+    if (voiceNotesView) {
+        [voiceNotesView setNeedsDisplay:YES];
+    }
+    
+    SPBrowserView *bView = browserDataSource.browserView;
+    if (bView) {
+        bView.backgroundColor = [tm browserBackgroundColor];
+        bView.gridColor = [tm browserGridColor];
+        [bView setNeedsDisplay:YES];
+        [bView reloadData];
+    }
+    
+    SPSourceListView *sView = sourceListDataSource.sourceListView;
+    if (sView) {
+        sView.backgroundColor = [tm sourceListBackgroundColor];
+        [sView setNeedsDisplay:YES];
+        [sView reloadData];
+    }
+    
+    [self updateThemeMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
+- (IBAction) selectThemeFromMenu:(id)sender
+// ----------------------------------------------------------------------------
+{
+    if ([sender isKindOfClass:[NSMenuItem class]]) {
+        NSMenuItem *item = (NSMenuItem *)sender;
+        [[SPThemeManager sharedManager] applyTheme:(SPAppTheme)item.tag];
+    }
+}
+
+// ----------------------------------------------------------------------------
+- (IBAction) cycleThemeFromMenu:(id)sender
+// ----------------------------------------------------------------------------
+{
+    [[SPThemeManager sharedManager] cycleTheme];
+}
+
+// ----------------------------------------------------------------------------
+- (void) themeDidChangeNotification:(NSNotification *)notification
+// ----------------------------------------------------------------------------
+{
+    [self applyCurrentTheme];
+}
+
+// ----------------------------------------------------------------------------
+- (SPAppTheme) currentTheme
+// ----------------------------------------------------------------------------
+{
+    return [SPThemeManager sharedManager].currentTheme;
 }
 
 // ----------------------------------------------------------------------------

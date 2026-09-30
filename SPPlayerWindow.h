@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #import "PlayerLibSidplayWrapper.h"
 #import "SPExporter.h"
+#import "SPThemeManager.h"
 
 #import "SPOscilloscopeWindowController.h"
 #import "PlayerInfoProtocol.h"
@@ -236,6 +237,13 @@ extern NSString* SPUrlRequestUserAgentString;
 
 - (IBAction) toggleOscilloscopeWindow:(id)sender;
 @property (weak) IBOutlet NSWindow *oScopeWindow;
+
+// Theme actions
+- (IBAction) selectThemeFromMenu:(id)sender;
+- (IBAction) cycleThemeFromMenu:(id)sender;
+- (void) applyCurrentTheme;
+- (void) updateThemeMenuChecks;
+@property (NS_NONATOMIC_IOSONLY, readonly) SPAppTheme currentTheme;
 @end
 
 

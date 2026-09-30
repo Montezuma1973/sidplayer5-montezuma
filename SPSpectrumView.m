@@ -1,4 +1,5 @@
 #import "SPSpectrumView.h"
+#import "SPThemeManager.h"
 #import <math.h>
 
 static const int kSpectrumFFTSize = 1024;
@@ -115,6 +116,23 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
     _crtProfile = (SPCRTDisplayProfile)savedProfile;
 
     [self setToolTip:@"Click to switch mode. Double-click to toggle CRT scanlines. Right-click for options."];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChangeNotification:) name:SPThemeDidChangeNotification object:nil];
+}
+
+// ----------------------------------------------------------------------------
+- (void)themeDidChangeNotification:(NSNotification *)notification
+// ----------------------------------------------------------------------------
+{
+    NSString *name = [[SPThemeManager sharedManager] currentThemeName];
+    _hudText = [NSString stringWithFormat:@"Theme: %@", name];
+    _hudDisplayUntil = [NSDate timeIntervalSinceReferenceDate] + 1.8;
+    [self setNeedsDisplay:YES];
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 // ----------------------------------------------------------------------------
@@ -1326,7 +1344,8 @@ static void SPFFT(float *real, float *imag, int size)
 
 - (void)drawSpectrumInRect:(NSRect)bounds
 {
-    [[NSColor controlBackgroundColor] setFill];
+    NSColor *bgColor = [[SPThemeManager sharedManager] visualizerBackgroundColor];
+    [bgColor setFill];
     NSRectFill(bounds);
 
     // Hardware silicon chip badge in upper right corner

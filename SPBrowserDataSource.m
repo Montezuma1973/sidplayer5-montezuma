@@ -18,6 +18,7 @@
 #import "SPBrowserState.h"
 #import "SPRemixKwedOrgController.h"
 #import "SPGradientBox.h"
+#import "SPThemeManager.h"
 
 
 @implementation SPPathControl
@@ -1351,6 +1352,14 @@ NSDate* fillStart = nil;
 
 
 // ----------------------------------------------------------------------------
+- (SPBrowserView*) browserView
+// ----------------------------------------------------------------------------
+{
+	return browserView;
+}
+
+
+// ----------------------------------------------------------------------------
 - (NSArray*) draggedItems
 // ----------------------------------------------------------------------------
 {
@@ -2201,7 +2210,25 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 {
 	if (item != nil && cell != nil)
 	{
-		if ([item fileDoesNotExist])
+		SPThemeManager *tm = [SPThemeManager sharedManager];
+		if (tm.currentTheme != SPAppThemeSystem)
+		{
+			NSInteger row = [outlineView rowForItem:item];
+			BOOL isSelected = [outlineView isRowSelected:row];
+			NSColor *textColor = isSelected ? [tm browserSelectionTextColor] : [tm browserTextColor];
+			if ([item fileDoesNotExist]) {
+				textColor = [NSColor systemRedColor];
+			}
+			NSMutableDictionary* attributes = [[[cell attributedStringValue] attributesAtIndex:0 effectiveRange:NULL] mutableCopy];
+			if (!attributes) {
+				attributes = [NSMutableDictionary dictionary];
+				if ([cell font]) attributes[NSFontAttributeName] = [cell font];
+			}
+			attributes[NSForegroundColorAttributeName] = textColor;
+			NSAttributedString* str = [[NSAttributedString alloc] initWithString:[cell stringValue] attributes:attributes];
+			[cell setAttributedStringValue:str];
+		}
+		else if ([item fileDoesNotExist])
 		{
 			NSMutableDictionary* attributes = [[[cell attributedStringValue] attributesAtIndex:0 effectiveRange:NULL] mutableCopy];
 			[attributes setObject:[NSColor redColor] forKey:NSForegroundColorAttributeName];
@@ -2550,6 +2577,78 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 #pragma mark -
 
 @implementation SPBrowserView
+
+
+// ----------------------------------------------------------------------------
+- (void) drawBackgroundInClipRect:(NSRect)clipRect
+// ----------------------------------------------------------------------------
+{
+	SPThemeManager *tm = [SPThemeManager sharedManager];
+	if (tm.currentTheme == SPAppThemeSystem) {
+		[super drawBackgroundInClipRect:clipRect];
+	} else {
+		[[tm browserBackgroundColor] setFill];
+		NSRectFill(clipRect);
+	}
+}
+
+
+// ----------------------------------------------------------------------------
+- (void) drawRow:(NSInteger)row clipRect:(NSRect)clipRect
+// ----------------------------------------------------------------------------
+{
+	SPThemeManager *tm = [SPThemeManager sharedManager];
+	if (tm.currentTheme != SPAppThemeSystem) {
+		if (![self isRowSelected:row]) {
+			NSColor *rowBg = (row % 2 == 0) ? [tm browserBackgroundColor] : [tm browserAlternatingRowColor];
+			if (rowBg) {
+				[rowBg setFill];
+				NSRectFill([self rectOfRow:row]);
+			}
+		}
+	}
+	[super drawRow:row clipRect:clipRect];
+}
+
+
+// ----------------------------------------------------------------------------
+- (void) highlightSelectionInClipRect:(NSRect)clipRect
+// ----------------------------------------------------------------------------
+{
+	SPThemeManager *tm = [SPThemeManager sharedManager];
+	if (tm.currentTheme == SPAppThemeSystem) {
+		[super highlightSelectionInClipRect:clipRect];
+	} else {
+		NSIndexSet *selectedRows = [self selectedRowIndexes];
+		NSColor *selColor = [tm browserSelectionColor];
+		[selColor setFill];
+		
+		[selectedRows enumerateIndexesUsingBlock:^(NSUInteger row, BOOL *stop) {
+			NSRect rowRect = [self rectOfRow:row];
+			if (NSIntersectsRect(rowRect, clipRect)) {
+				if (tm.currentTheme == SPAppThemeWorkbench31) {
+					// 3D chiseled bevel border around selection
+					NSRectFill(rowRect);
+					[[NSColor whiteColor] setFill];
+					NSRectFill(NSMakeRect(rowRect.origin.x, rowRect.origin.y + rowRect.size.height - 1.0f, rowRect.size.width, 1.0f));
+					[[NSColor colorWithCalibratedWhite:0.3f alpha:1.0f] setFill];
+					NSRectFill(NSMakeRect(rowRect.origin.x, rowRect.origin.y, rowRect.size.width, 1.0f));
+					[selColor setFill];
+				} else if (tm.currentTheme == SPAppThemeWorkbench13) {
+					// Sharp solid orange box with black pixel border
+					NSRectFill(rowRect);
+					[[NSColor blackColor] setStroke];
+					NSFrameRect(rowRect);
+					[selColor setFill];
+				} else {
+					// C64 retro purple-indigo highlight
+					NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rowRect, 1.0f, 1.0f) xRadius:2.0f yRadius:2.0f];
+					[path fill];
+				}
+			}
+		}];
+	}
+}
 
 
 // ----------------------------------------------------------------------------
