@@ -235,7 +235,7 @@ NSString * const kSPAppThemePrefKey = @"SPAppTheme";
             return [NSColor colorWithCalibratedRed:0.745f green:0.745f blue:0.745f alpha:1.0f];
         case SPAppThemeSystem:
         default:
-            return [NSColor controlBackgroundColor];
+            return [NSColor clearColor];
     }
 }
 
@@ -341,7 +341,7 @@ NSString * const kSPAppThemePrefKey = @"SPAppTheme";
             return [NSColor colorWithCalibratedRed:0.667f green:0.667f blue:0.667f alpha:1.0f];
         case SPAppThemeSystem:
         default:
-            return [NSColor controlBackgroundColor];
+            return [NSColor colorWithCalibratedWhite:0.0f alpha:0.15f];
     }
 }
 

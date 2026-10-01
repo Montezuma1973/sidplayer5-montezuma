@@ -43,6 +43,7 @@ extern NSString* SPUrlRequestUserAgentString;
     IBOutlet id leftView;
     IBOutlet id rightView;
 	IBOutlet NSSplitView* splitView;
+    NSVisualEffectView* sidebarVisualEffectView;
 	IBOutlet id infoView;
 	IBOutlet SPBrowserDataSource* browserDataSource;
 	IBOutlet NSScrollView* browserScrollView;
@@ -238,11 +239,12 @@ extern NSString* SPUrlRequestUserAgentString;
 - (IBAction) toggleOscilloscopeWindow:(id)sender;
 @property (weak) IBOutlet NSWindow *oScopeWindow;
 
-// Theme actions
+// Theme & Translucency
 - (IBAction) selectThemeFromMenu:(id)sender;
 - (IBAction) cycleThemeFromMenu:(id)sender;
 - (void) applyCurrentTheme;
 - (void) updateThemeMenuChecks;
+- (void) setupSidebarVisualEffectView;
 @property (NS_NONATOMIC_IOSONLY, readonly) SPAppTheme currentTheme;
 
 // Channel Matrix & Voice Solo/Mute

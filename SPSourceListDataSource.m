@@ -1326,6 +1326,8 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 			attrs[NSFontAttributeName] = [NSFont boldSystemFontOfSize:12.0f];
 			if (tm.currentTheme != SPAppThemeSystem) {
 				attrs[NSForegroundColorAttributeName] = [tm sourceListSelectionTextColor];
+			} else {
+				attrs[NSForegroundColorAttributeName] = [NSColor alternateSelectedControlTextColor];
 			}
 		}
 		else
@@ -1335,6 +1337,12 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 					attrs[NSForegroundColorAttributeName] = [tm sourceListHeaderColor];
 				} else {
 					attrs[NSForegroundColorAttributeName] = [tm sourceListTextColor];
+				}
+			} else {
+				if ([(SPSourceListItem*)item isHeader]) {
+					attrs[NSForegroundColorAttributeName] = [NSColor secondaryLabelColor];
+				} else {
+					attrs[NSForegroundColorAttributeName] = [NSColor labelColor];
 				}
 			}
 		}
@@ -1362,7 +1370,7 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 			if (tm.currentTheme != SPAppThemeSystem) {
 				[cell setTextColor:isSelected ? [tm sourceListSelectionTextColor] : [tm sourceListTextColor]];
 			} else {
-				[cell setTextColor:[NSColor textColor]];
+				[cell setTextColor:isSelected ? [NSColor alternateSelectedControlTextColor] : [NSColor labelColor]];
 			}
 		}
 	}
@@ -1564,7 +1572,7 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 {
 	SPThemeManager *tm = [SPThemeManager sharedManager];
 	if (tm.currentTheme == SPAppThemeSystem) {
-		[super drawBackgroundInClipRect:clipRect];
+		// Native translucent vibrancy: leave background transparent so NSVisualEffectView blurs through
 	} else {
 		[[tm sourceListBackgroundColor] setFill];
 		NSRectFill(clipRect);
@@ -1614,6 +1622,14 @@ static NSString* SPDefaultKeyDontShowDeletePlaylistAlert = @"SPDefaultKeyDontSho
 	[[NSNotificationCenter defaultCenter] addObserver:self
 	                                         selector:@selector(itemDidCollapse:)
 											     name:NSOutlineViewItemDidCollapseNotification object:nil];
+
+	NSScrollView *enclosingScrollView = [self enclosingScrollView];
+	if (enclosingScrollView) {
+		enclosingScrollView.drawsBackground = NO;
+		if (enclosingScrollView.contentView) {
+			enclosingScrollView.contentView.drawsBackground = NO;
+		}
+	}
 }
 
 

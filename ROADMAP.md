@@ -72,8 +72,11 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
 
 ## 🪟 Milestone 3: Modern macOS Polish & Window Layout
 
-- [ ] **3.1 Frosted Glass Sidebar Translucency**
-  - [ ] Integrate macOS `NSVisualEffectView` into the source list and visualizer container for native vibrancy in Dark and Light mode.
+- [x] **3.1 Frosted Glass Sidebar Translucency**
+  - [x] Integrate macOS `NSVisualEffectView` into the source list and visualizer container for native vibrancy in Dark and Light mode.
+  - [x] Native frosted glass sidebar behind the source list, visualizer container, and utility toolbar with `NSVisualEffectMaterialSidebar` and `behindWindow` blending.
+  - [x] Dynamic theme adaptation: transparent vibrancy for Modern macOS System theme; automatic clean disable/fallback for retro solid themes (C64, Workbench 1.3, Workbench 3.1).
+  - [x] Translucent visualizer container framing with 1px hairline glass separators and subtle shine highlights, seamlessly blending Spectrum, Tracker Matrix, and Piano Roll modes over the frosted glass backdrop.
 
 - [ ] **3.2 Enhanced Timeline Scrub Bar**
   - [ ] Precise time scrub bar with elapsed and remaining time tooltips on hover.
