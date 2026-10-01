@@ -1,6 +1,7 @@
 #import "SPMenuBarPlayerController.h"
 #import "SPPlayerWindow.h"
 #import "SPBrowserDataSource.h"
+#import "SPFloatingWidgetController.h"
 
 static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
 
@@ -23,6 +24,7 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
     
     NSMenuItem *_loopMenuItem;
     NSMenuItem *_volumeParentMenuItem;
+    NSMenuItem *_floatingWidgetMenuItem;
     
     // Cached state
     NSString *_currentTitle;
@@ -268,14 +270,20 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
     openAppItem.target = self;
     [_statusMenu addItem:openAppItem];
     
-    // 12. Preferences
+    // 12. Floating Retro Visualizer Widget
+    _floatingWidgetMenuItem = [[NSMenuItem alloc] initWithTitle:@"Pop Out Floating Retro Visualizer" action:@selector(menuToggleFloatingWidget:) keyEquivalent:@"d"];
+    _floatingWidgetMenuItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+    _floatingWidgetMenuItem.target = self;
+    [_statusMenu addItem:_floatingWidgetMenuItem];
+    
+    // 13. Preferences
     NSMenuItem *prefsItem = [[NSMenuItem alloc] initWithTitle:@"Preferences…" action:@selector(menuShowPreferences:) keyEquivalent:@","];
     prefsItem.target = self;
     [_statusMenu addItem:prefsItem];
     
     [_statusMenu addItem:[NSMenuItem separatorItem]];
     
-    // 13. Quit
+    // 14. Quit
     NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:@"Quit SIDPLAY" action:@selector(menuQuitApp:) keyEquivalent:@"q"];
     quitItem.target = self;
     [_statusMenu addItem:quitItem];
@@ -336,6 +344,12 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
         _statusItem.button.toolTip = [NSString stringWithFormat:@"SIDPLAY: %@ — %@", _currentTitle, _currentAuthor ?: @""];
     } else {
         _statusItem.button.toolTip = @"SIDPLAY Mini-Player";
+    }
+    
+    // 7. Floating Widget State
+    if (_floatingWidgetMenuItem) {
+        BOOL isDetached = [SPFloatingWidgetController sharedController].isDetached;
+        _floatingWidgetMenuItem.title = isDetached ? @"Dock Retro Visualizer" : @"Pop Out Floating Retro Visualizer";
     }
     
     [self updateLoopMode];
@@ -540,6 +554,14 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
     if (_playerWindow) {
         [_playerWindow showPreferencesWindow:nil];
         [NSApp activateIgnoringOtherApps:YES];
+    }
+}
+
+- (void)menuToggleFloatingWidget:(id)sender
+{
+    if (_playerWindow) {
+        [_playerWindow toggleFloatingVisualizerWidget:sender];
+        [self refreshDisplay];
     }
 }
 

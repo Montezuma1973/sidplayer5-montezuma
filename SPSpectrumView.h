@@ -24,6 +24,7 @@ typedef NS_ENUM(NSInteger, SPCRTDisplayProfile) {
 @property (nonatomic, assign) SPCRTDisplayProfile crtProfile;
 @property (nonatomic, copy) NSString *chipModel;
 @property (nonatomic, weak) id ownerWindow;
+@property (nonatomic, assign) BOOL isDetachedInFloatingWidget;
 
 - (void)updateWithSamples:(const short *)samples count:(int)count sampleRate:(int)sampleRate;
 

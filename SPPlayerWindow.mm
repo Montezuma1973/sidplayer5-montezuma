@@ -18,6 +18,7 @@
 #import "SPSidNoteUtils.h"
 #import "SPMixerView.h"
 #import "SPMenuBarPlayerController.h"
+#import "SPFloatingWidgetController.h"
 
 #import "PlayerLibSidplayWrapper.h"
 
@@ -1171,6 +1172,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
                                                              chip:chipName
                                                             isMod:[player isCurrentTuneMod]];
     
+    [[SPFloatingWidgetController sharedController] updateOverlayInfoWithTitle:title
+                                                                       author:author
+                                                                         chip:chipName
+                                                                        isMod:[player isCurrentTuneMod]];
+    
     [[SPPreferencesController sharedInstance] initializeFilterSettingsFromChipModelOfPlayer:player];
     
     [[NSNotificationCenter defaultCenter] postNotificationName:SPTuneChangedNotification object:self];
@@ -2159,6 +2165,12 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             miniPlayerItem.target = self;
             miniPlayerItem.tag = 7771;
             [viewMenu addItem:miniPlayerItem];
+            
+            NSMenuItem *widgetItem = [[NSMenuItem alloc] initWithTitle:@"Detach Floating Retro Visualizer" action:@selector(toggleFloatingVisualizerWidget:) keyEquivalent:@"d"];
+            widgetItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+            widgetItem.target = self;
+            widgetItem.tag = 7772;
+            [viewMenu addItem:widgetItem];
         }
     }
     [self updateThemeMenuChecks];
@@ -2193,6 +2205,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         if (miniPlayerItem) {
             miniPlayerItem.state = [SPMenuBarPlayerController sharedController].isEnabled ? NSControlStateValueOn : NSControlStateValueOff;
         }
+        
+        [[SPFloatingWidgetController sharedController] updateViewMenuChecks];
     }
 }
 
@@ -2378,6 +2392,14 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 {
     SPMenuBarPlayerController *mbc = [SPMenuBarPlayerController sharedController];
     mbc.enabled = !mbc.isEnabled;
+    [self updateThemeMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
+- (IBAction) toggleFloatingVisualizerWidget:(id)sender
+// ----------------------------------------------------------------------------
+{
+    [[SPFloatingWidgetController sharedController] toggleFloatingWidget];
     [self updateThemeMenuChecks];
 }
 
@@ -2671,6 +2693,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         [self makeKeyAndOrderFront:self];
         
     [[SPMenuBarPlayerController sharedController] setupWithPlayerWindow:self];
+    [[SPFloatingWidgetController sharedController] setupWithPlayerWindow:self spectrumView:spectrumView];
 }
 
 // ----------------------------------------------------------------------------
