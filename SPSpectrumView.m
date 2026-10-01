@@ -1,6 +1,7 @@
 #import "SPSpectrumView.h"
 #import "SPThemeManager.h"
 #import "SPPlayerWindow.h"
+#import "SPAudioProcessor.h"
 #import <math.h>
 
 static const int kSpectrumFFTSize = 1024;
@@ -337,6 +338,12 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
         [self cycleCRTProfile];
     } else if ([chars isEqualToString:@"v"] || [chars isEqualToString:@"V"]) {
         [self cycleVisualizerMode];
+    } else if ([chars isEqualToString:@"x"] || [chars isEqualToString:@"X"]) {
+        [[SPAudioProcessor sharedProcessor] cycleCrossfeedMode];
+        [self showNotification:[NSString stringWithFormat:@"🎧 %@", [[SPAudioProcessor sharedProcessor] localizedCrossfeedName]]];
+    } else if ([chars isEqualToString:@"w"] || [chars isEqualToString:@"W"]) {
+        [[SPAudioProcessor sharedProcessor] cycleSpatialWidenerMode];
+        [self showNotification:[NSString stringWithFormat:@"🔊 SID WIDENER: %@", [[SPAudioProcessor sharedProcessor] localizedSpatialWidenerName]]];
     } else {
         [super keyDown:event];
     }
@@ -408,6 +415,54 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
     [crtSubmenuItem setSubmenu:crtSubmenu];
     [menu addItem:crtSubmenuItem];
 
+    // Audio DSP: Headphone Crossfeed & Spatial Widener
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    NSMenuItem *crossfeedParent = [[NSMenuItem alloc] initWithTitle:@"Headphone Crossfeed" action:nil keyEquivalent:@""];
+    NSMenu *cfSubmenu = [[NSMenu alloc] initWithTitle:@"Headphone Crossfeed"];
+    NSArray *cfNames = @[
+        @"Natural Crossfeed (Headphones)",
+        @"Subtle Crossfeed",
+        @"Off (Authentic Hard Stereo)",
+        @"Mono Downmix"
+    ];
+    SPCrossfeedMode curCF = [SPAudioProcessor sharedProcessor].crossfeedMode;
+    for (NSInteger i = 0; i < 4; i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:cfNames[i]
+                                                      action:@selector(selectCrossfeedFromMenu:)
+                                               keyEquivalent:@""];
+        item.target = self;
+        item.tag = i;
+        if ((NSInteger)curCF == i) {
+            item.state = NSControlStateValueOn;
+        }
+        [cfSubmenu addItem:item];
+    }
+    crossfeedParent.submenu = cfSubmenu;
+    [menu addItem:crossfeedParent];
+
+    NSMenuItem *widenerParent = [[NSMenuItem alloc] initWithTitle:@"SID Spatial Widener" action:nil keyEquivalent:@""];
+    NSMenu *wSubmenu = [[NSMenu alloc] initWithTitle:@"SID Spatial Widener"];
+    NSArray *wNames = @[
+        @"Off (Authentic Mono)",
+        @"Subtle Room Ambiance",
+        @"Expansive Soundstage"
+    ];
+    SPSpatialWidenerMode curW = [SPAudioProcessor sharedProcessor].spatialWidenerMode;
+    for (NSInteger i = 0; i < 3; i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:wNames[i]
+                                                      action:@selector(selectWidenerFromMenu:)
+                                               keyEquivalent:@""];
+        item.target = self;
+        item.tag = i;
+        if ((NSInteger)curW == i) {
+            item.state = NSControlStateValueOn;
+        }
+        [wSubmenu addItem:item];
+    }
+    widenerParent.submenu = wSubmenu;
+    [menu addItem:widenerParent];
+
     // Detach / Dock Menu Item
     [menu addItem:[NSMenuItem separatorItem]];
     NSString *dockTitle = _isDetachedInFloatingWidget ? @"Dock into Main Window" : @"Pop Out as Floating Widget";
@@ -433,6 +488,22 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
 // ----------------------------------------------------------------------------
 {
     [self setCrtProfile:(SPCRTDisplayProfile)sender.tag];
+}
+
+// ----------------------------------------------------------------------------
+- (void)selectCrossfeedFromMenu:(NSMenuItem *)sender
+// ----------------------------------------------------------------------------
+{
+    [SPAudioProcessor sharedProcessor].crossfeedMode = (SPCrossfeedMode)sender.tag;
+    [self showNotification:[NSString stringWithFormat:@"🎧 %@", [[SPAudioProcessor sharedProcessor] localizedCrossfeedName]]];
+}
+
+// ----------------------------------------------------------------------------
+- (void)selectWidenerFromMenu:(NSMenuItem *)sender
+// ----------------------------------------------------------------------------
+{
+    [SPAudioProcessor sharedProcessor].spatialWidenerMode = (SPSpatialWidenerMode)sender.tag;
+    [self showNotification:[NSString stringWithFormat:@"🔊 SID WIDENER: %@", [[SPAudioProcessor sharedProcessor] localizedSpatialWidenerName]]];
 }
 
 // ----------------------------------------------------------------------------

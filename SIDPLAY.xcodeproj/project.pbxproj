@@ -132,6 +132,9 @@
 		DAA000212E696C90001433DC /* SPMenuBarPlayerController.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000232E696C90001433DC /* SPMenuBarPlayerController.h */; };
 		DAA000302E696C90001433DC /* SPFloatingWidgetController.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000322E696C90001433DC /* SPFloatingWidgetController.m */; };
 		DAA000312E696C90001433DC /* SPFloatingWidgetController.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000332E696C90001433DC /* SPFloatingWidgetController.h */; };
+		DAA000402E696C90001433DC /* SPAudioProcessor.mm in Sources */ = {isa = PBXBuildFile; fileRef = DAA000422E696C90001433DC /* SPAudioProcessor.mm */; };
+		DAA000412E696C90001433DC /* SPAudioProcessor.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000432E696C90001433DC /* SPAudioProcessor.h */; };
+		DAA000442E696C90001433DC /* SPAudioProcessor.mm in Sources */ = {isa = PBXBuildFile; fileRef = DAA000422E696C90001433DC /* SPAudioProcessor.mm */; };
 		DA17E52A2A04F6C800419CB8 /* residfp-builder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A82A04F36000419CB8 /* residfp-builder.cpp */; };
 		DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A72A04F36000419CB8 /* residfp-emu.cpp */; };
 		DA17E52C2A04F6D500419CB8 /* OpAmp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3AB2A04F36000419CB8 /* OpAmp.cpp */; };
@@ -497,6 +500,8 @@
 		DAA000232E696C90001433DC /* SPMenuBarPlayerController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPMenuBarPlayerController.h; sourceTree = "<group>"; };
 		DAA000322E696C90001433DC /* SPFloatingWidgetController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPFloatingWidgetController.m; sourceTree = "<group>"; };
 		DAA000332E696C90001433DC /* SPFloatingWidgetController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPFloatingWidgetController.h; sourceTree = "<group>"; };
+		DAA000422E696C90001433DC /* SPAudioProcessor.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SPAudioProcessor.mm; sourceTree = "<group>"; };
+		DAA000432E696C90001433DC /* SPAudioProcessor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPAudioProcessor.h; sourceTree = "<group>"; };
 		DA17E2EB2A04F36000419CB8 /* lightpen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lightpen.h; sourceTree = "<group>"; };
 		DA17E2EC2A04F36000419CB8 /* mos656x.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mos656x.h; sourceTree = "<group>"; };
 		DA17E2ED2A04F36000419CB8 /* mos656x.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mos656x.cpp; sourceTree = "<group>"; };
@@ -1012,6 +1017,8 @@
 				DAA000232E696C90001433DC /* SPMenuBarPlayerController.h */,
 				DAA000322E696C90001433DC /* SPFloatingWidgetController.m */,
 				DAA000332E696C90001433DC /* SPFloatingWidgetController.h */,
+				DAA000422E696C90001433DC /* SPAudioProcessor.mm */,
+				DAA000432E696C90001433DC /* SPAudioProcessor.h */,
 				DA529CBC2F9C162D00FD8AC7 /* PlayerUsbWorker.m */,
 				DA529CC32F9E250400FD8AC7 /* USBDeviceWatcher.m */,
 				DA529CC72F9E250C00FD8AC7 /* USBDeviceWatcher.h */,
@@ -1960,6 +1967,7 @@
 				DAA000102E696C90001433DC /* SPThemeManager.m in Sources */,
 				DAA000202E696C90001433DC /* SPMenuBarPlayerController.m in Sources */,
 				DAA000302E696C90001433DC /* SPFloatingWidgetController.m in Sources */,
+				DAA000402E696C90001433DC /* SPAudioProcessor.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2048,6 +2056,7 @@
 				DA557D672AC720CC00C02288 /* PlayerWrapper.mm in Sources */,
 				DA557D6D2ACAB6A300C02288 /* PVScopeView.m in Sources */,
 				DA557D6E2ACAF62300C02288 /* AudioCoreDriverNew.cpp in Sources */,
+				DAA000442E696C90001433DC /* SPAudioProcessor.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

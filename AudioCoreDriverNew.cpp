@@ -23,6 +23,7 @@
 #include <string.h>
 #include "PlayerLibSidplayWrapper.h"
 #include "AudioCoreDriverNew.h"
+#import "SPAudioProcessor.h"
 
 // ----------------------------------------------------------------------------
 AudioCoreDriverNew::AudioCoreDriverNew()
@@ -64,8 +65,8 @@ void AudioCoreDriverNew::initialize(PlayerLibSidplayWrapper* player, int sampleR
     mPreRenderedBufferPlaybackPosition = 0;
 
     mSampleRate = DEFAULT_SAMPLERATE; //sampleRate
-    mNumSamplesInAudioBuffer = 512;
-    numberOfBytesInAudioBuffer = mNumSamplesInAudioBuffer * sizeof(short);
+    mNumFramesInAudioBuffer = 512;
+    numberOfBytesInAudioBuffer = mNumFramesInAudioBuffer * 2 * sizeof(short); // Stereo interleaved 16-bit
     
 	if (!mIsInitialized)
 	{
@@ -137,8 +138,8 @@ void AudioCoreDriverNew::initialize(PlayerLibSidplayWrapper* player, int sampleR
         err = AudioUnitInitialize(gOutputUnit);
         if (err) { printf ("AudioUnitInitialize=%ld\n", (long int)err); return; }
 
-        // alloc sample buffer
-        mSampleBuffer = new short[mNumSamplesInAudioBuffer];
+        // alloc sample buffer (stereo: 2 shorts per frame)
+        mSampleBuffer = new short[mNumFramesInAudioBuffer * 2];
         memset(mSampleBuffer, 0, numberOfBytesInAudioBuffer);
 
         if (mSpectrumBuffer == NULL) {
@@ -184,8 +185,25 @@ void AudioCoreDriverNew::fillBuffer()
 		return;
 	}
     [mPlayer fillBuffer:mSampleBuffer withLen:numberOfBytesInAudioBuffer];
+    
+    // Apply Headphone Crossfeed and Spatial Widener DSP
+    BOOL isMod = NO;
+    int sidChips = 1;
+    if ([mPlayer respondsToSelector:@selector(isCurrentTuneMod)]) {
+        isMod = [mPlayer isCurrentTuneMod];
+    }
+    if ([mPlayer respondsToSelector:@selector(getSidChips)]) {
+        sidChips = [mPlayer getSidChips];
+    }
+    
+    [[SPAudioProcessor sharedProcessor] processStereoBuffer:mSampleBuffer
+                                                 frameCount:mNumFramesInAudioBuffer
+                                                 sampleRate:mSampleRate
+                                                      isMod:isMod
+                                                   sidChips:sidChips];
+    
     // reset value to full buffer
-    numberOfSamplesInAudioBuffer = mNumSamplesInAudioBuffer;
+    numberOfFramesInAudioBuffer = mNumFramesInAudioBuffer;
 }
 
 
@@ -271,71 +289,61 @@ OSStatus    AudioCoreDriverNew::MyRenderer(void     *inRefCon,
     short* outAudioBuffer = (short*) ioData->mBuffers[0].mData;
     short* inAudioBuffer  = (short*) driverInstance->getSampleBuffer();
     unsigned int numberOfBytesOutAudioBuffer = ioData->mBuffers[0].mDataByteSize;
-    float sample = 0.0f;
 
-    // available samples in outBuffer
-    // need to divide by 2, since we have left/right channel
-    unsigned int numberOfSamplesOutAudioBuffer = numberOfBytesOutAudioBuffer / sizeof(short) /2;
-    // set buffers...
+    // Available frames in outBuffer (stereo 16-bit interleaved = 4 bytes per frame)
+    unsigned int numberOfFramesOut = numberOfBytesOutAudioBuffer / (sizeof(short) * 2);
     short *audioOut = outAudioBuffer;
-    short *audioIn  = &inAudioBuffer[driverInstance->mNumSamplesInAudioBuffer-driverInstance->numberOfSamplesInAudioBuffer];
-    // out buffer shall be organized like sample 0, sample 0, sample 1, sample 1
-    // duplicating the samples (audio buffer, make stereo left/right out of mono
-    // we always need to fill the entire outBuffer
-    // case 1
-    if (driverInstance->numberOfSamplesInAudioBuffer > numberOfSamplesOutAudioBuffer)
+    short *audioIn  = &inAudioBuffer[(driverInstance->mNumFramesInAudioBuffer - driverInstance->numberOfFramesInAudioBuffer) * 2];
+
+    // Case 1: More frames in input buffer than needed by audio output
+    if (driverInstance->numberOfFramesInAudioBuffer > numberOfFramesOut)
     {
-        for (int x=0;x<numberOfSamplesOutAudioBuffer;x++) {
-            sample = driverInstance->mVolume * (*audioIn++);
-            driverInstance->pushSpectrumSample((short)sample);
-            *audioOut++ = (short)sample; // left
-            *audioOut++ = (short)sample; // right
+        for (unsigned int x = 0; x < numberOfFramesOut; x++) {
+            float left  = driverInstance->mVolume * (*audioIn++);
+            float right = driverInstance->mVolume * (*audioIn++);
+            driverInstance->pushSpectrumSample((short)((left + right) * 0.5f));
+            *audioOut++ = (short)left;
+            *audioOut++ = (short)right;
         }
-        driverInstance->numberOfSamplesInAudioBuffer -= numberOfSamplesOutAudioBuffer;
-       // NSLog(@"Case 1: copied %d samples (%d bytes)",numberOfSamplesOutAudioBuffer,numberOfBytesOutAudioBuffer);
-    } else
-    // case 2
-    if (driverInstance->numberOfSamplesInAudioBuffer < numberOfSamplesOutAudioBuffer)
+        driverInstance->numberOfFramesInAudioBuffer -= numberOfFramesOut;
+    }
+    else if (driverInstance->numberOfFramesInAudioBuffer < numberOfFramesOut)
     {
-        int numberOfSamplesToCopy = numberOfSamplesOutAudioBuffer;
-        int tempSampleCopy = driverInstance->numberOfSamplesInAudioBuffer;
-        while (numberOfSamplesToCopy >0 ) {
-            for (int x=0;x<tempSampleCopy;x++) {
-                sample = driverInstance->mVolume * (*audioIn++);
-                driverInstance->pushSpectrumSample((short)sample);
-                *audioOut++ = (short)sample; // left
-                *audioOut++ = (short)sample; // right
+        unsigned int framesToCopy = numberOfFramesOut;
+        unsigned int tempFrameCopy = driverInstance->numberOfFramesInAudioBuffer;
+        while (framesToCopy > 0) {
+            for (unsigned int x = 0; x < tempFrameCopy; x++) {
+                float left  = driverInstance->mVolume * (*audioIn++);
+                float right = driverInstance->mVolume * (*audioIn++);
+                driverInstance->pushSpectrumSample((short)((left + right) * 0.5f));
+                *audioOut++ = (short)left;
+                *audioOut++ = (short)right;
             }
-            // entire in buffer was copied?
-            if (tempSampleCopy == driverInstance->numberOfSamplesInAudioBuffer) {
-                //fill buffer up with fresh samples
+            // Entire input buffer was copied? Refill with fresh samples
+            if (tempFrameCopy == driverInstance->numberOfFramesInAudioBuffer) {
                 driverInstance->fillBuffer();
-                audioIn  = inAudioBuffer;
-            } else
-                driverInstance->numberOfSamplesInAudioBuffer -= tempSampleCopy;
-            //NSLog(@"Case 2: copied %d samples.",tempSampleCopy);
- 
-            //numberOfBytesInAudioBuffer = sizeof(short) * numberOfSamplesInAudioBuffer;
-            numberOfSamplesToCopy -= tempSampleCopy;
-            if (numberOfSamplesToCopy >= driverInstance->numberOfSamplesInAudioBuffer)
-                tempSampleCopy = driverInstance->numberOfSamplesInAudioBuffer;
+                audioIn = inAudioBuffer;
+            } else {
+                driverInstance->numberOfFramesInAudioBuffer -= tempFrameCopy;
+            }
+
+            framesToCopy -= tempFrameCopy;
+            if (framesToCopy >= driverInstance->numberOfFramesInAudioBuffer)
+                tempFrameCopy = driverInstance->numberOfFramesInAudioBuffer;
             else
-                tempSampleCopy = numberOfSamplesToCopy;
+                tempFrameCopy = framesToCopy;
         }
-    } else
-    //case 3
-    if (driverInstance->numberOfSamplesInAudioBuffer == numberOfSamplesOutAudioBuffer)
+    }
+    else // Case 3: Exactly equal number of frames
     {
-        for (int x=0;x<numberOfSamplesOutAudioBuffer;x++) {
-            sample = driverInstance->mVolume * (*audioIn++);
-            driverInstance->pushSpectrumSample((short)sample);
-            *audioOut++ = (short)sample; // left
-            *audioOut++ = (short)sample; // right
+        for (unsigned int x = 0; x < numberOfFramesOut; x++) {
+            float left  = driverInstance->mVolume * (*audioIn++);
+            float right = driverInstance->mVolume * (*audioIn++);
+            driverInstance->pushSpectrumSample((short)((left + right) * 0.5f));
+            *audioOut++ = (short)left;
+            *audioOut++ = (short)right;
         }
-        //fill buffer up with fresh samples
         driverInstance->fillBuffer();
-        //audioIn  = inAudioBuffer;
-        //NSLog(@"Case 3: copied %d samples (%d bytes)",numberOfSamplesOutAudioBuffer,numberOfBytesOutAudioBuffer);
     }
 
 

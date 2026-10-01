@@ -83,7 +83,7 @@ public:
 	inline int getSampleBufferSize()	{ return mSampleBufferSize; }
 	inline bool getIsInitialized()		{ return mIsInitialized; }
     
-    inline int getNumSamplesInBuffer()   { return         mNumSamplesInAudioBuffer; }
+    inline int getNumSamplesInBuffer()   { return         mNumFramesInAudioBuffer; }
     int copySpectrumSamples(short* outBuffer, int maxSamples) const;
 private:
     inline float getScaleFactor()          { return mScaleFactor; }
@@ -130,10 +130,10 @@ private:
     
     static const int            sBufferUnderrunLimit = 10;
 
-    // buffer handling vars
-    unsigned int        mNumSamplesInAudioBuffer;
+    // buffer handling vars (stereo frames)
+    unsigned int        mNumFramesInAudioBuffer;
     unsigned int        numberOfBytesInAudioBuffer;
-    unsigned int        numberOfSamplesInAudioBuffer;
+    unsigned int        numberOfFramesInAudioBuffer;
 
     static const int    kSpectrumBufferSize = 4096;
     short*              mSpectrumBuffer;

@@ -19,6 +19,7 @@
 #import "SPMixerView.h"
 #import "SPMenuBarPlayerController.h"
 #import "SPFloatingWidgetController.h"
+#import "SPAudioProcessor.h"
 
 #import "PlayerLibSidplayWrapper.h"
 
@@ -460,6 +461,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     struct PlaybackSettings dummySettings;
     [gPreferences getPlaybackSettings:&dummySettings];
     dummySettings.mFrequency = audioDriver->getSampleRate();
+    dummySettings.mStereo = 1;
     [gPreferences copyPlaybackSettings:&dummySettings];
     
     /* FIXME: Filter settings (again)
@@ -549,7 +551,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [self setupSidebarVisualEffectView];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChangeNotification:) name:SPThemeDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(audioProcessorDidChangeNotification:) name:SPAudioProcessorCrossfeedChangedNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(audioProcessorDidChangeNotification:) name:SPAudioProcessorWidenerChangedNotification object:nil];
     [self setupThemeMenu];
+    [self setupAudioMenu];
     [self applyCurrentTheme];
 }
 
@@ -2208,6 +2213,152 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         
         [[SPFloatingWidgetController sharedController] updateViewMenuChecks];
     }
+}
+
+// ----------------------------------------------------------------------------
+- (void) setupAudioMenu
+// ----------------------------------------------------------------------------
+{
+    NSMenu *mainMenu = [NSApp mainMenu];
+    if (!mainMenu) return;
+    
+    NSMenuItem *audioMenuItem = [mainMenu itemWithTitle:@"Audio"];
+    if (!audioMenuItem) {
+        audioMenuItem = [[NSMenuItem alloc] initWithTitle:@"Audio" action:nil keyEquivalent:@""];
+        NSMenu *audioMenu = [[NSMenu alloc] initWithTitle:@"Audio"];
+        audioMenuItem.submenu = audioMenu;
+        
+        NSInteger insertIndex = [mainMenu indexOfItemWithTitle:@"View"];
+        if (insertIndex == -1) insertIndex = [mainMenu numberOfItems];
+        [mainMenu insertItem:audioMenuItem atIndex:insertIndex];
+    }
+    
+    NSMenu *audioMenu = audioMenuItem.submenu;
+    [audioMenu removeAllItems];
+    
+    // 1. Headphone Crossfeed submenu
+    NSMenuItem *crossfeedParent = [[NSMenuItem alloc] initWithTitle:@"Headphone Crossfeed" action:nil keyEquivalent:@""];
+    NSMenu *crossfeedMenu = [[NSMenu alloc] initWithTitle:@"Headphone Crossfeed"];
+    
+    NSArray *cfItems = @[
+        @{@"title": @"Natural Crossfeed (Headphones)", @"tag": @(SPCrossfeedModeNatural)},
+        @{@"title": @"Subtle Crossfeed", @"tag": @(SPCrossfeedModeSubtle)},
+        @{@"title": @"Off (Authentic Hard Stereo)", @"tag": @(SPCrossfeedModeOff)},
+        @{@"title": @"Mono Downmix", @"tag": @(SPCrossfeedModeMono)}
+    ];
+    for (NSDictionary *dict in cfItems) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:dict[@"title"] action:@selector(selectCrossfeedFromMenu:) keyEquivalent:@""];
+        item.target = self;
+        item.tag = [dict[@"tag"] integerValue];
+        [crossfeedMenu addItem:item];
+    }
+    [crossfeedMenu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *cycleCfItem = [[NSMenuItem alloc] initWithTitle:@"Cycle Crossfeed Mode" action:@selector(cycleCrossfeedFromMenu:) keyEquivalent:@"x"];
+    cycleCfItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+    cycleCfItem.target = self;
+    [crossfeedMenu addItem:cycleCfItem];
+    
+    crossfeedParent.submenu = crossfeedMenu;
+    [audioMenu addItem:crossfeedParent];
+    
+    // 2. SID Spatial Widener submenu
+    NSMenuItem *widenerParent = [[NSMenuItem alloc] initWithTitle:@"SID Spatial Widener" action:nil keyEquivalent:@""];
+    NSMenu *widenerMenu = [[NSMenu alloc] initWithTitle:@"SID Spatial Widener"];
+    
+    NSArray *wItems = @[
+        @{@"title": @"Off (Authentic Mono)", @"tag": @(SPSpatialWidenerOff)},
+        @{@"title": @"Subtle Room Ambiance", @"tag": @(SPSpatialWidenerSubtle)},
+        @{@"title": @"Expansive Soundstage", @"tag": @(SPSpatialWidenerWide)}
+    ];
+    for (NSDictionary *dict in wItems) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:dict[@"title"] action:@selector(selectWidenerFromMenu:) keyEquivalent:@""];
+        item.target = self;
+        item.tag = [dict[@"tag"] integerValue];
+        [widenerMenu addItem:item];
+    }
+    [widenerMenu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *cycleWItem = [[NSMenuItem alloc] initWithTitle:@"Cycle Spatial Widener" action:@selector(cycleWidenerFromMenu:) keyEquivalent:@"w"];
+    cycleWItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+    cycleWItem.target = self;
+    [widenerMenu addItem:cycleWItem];
+    
+    widenerParent.submenu = widenerMenu;
+    [audioMenu addItem:widenerParent];
+    
+    [self updateAudioMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
+- (void) updateAudioMenuChecks
+// ----------------------------------------------------------------------------
+{
+    NSMenu *mainMenu = [NSApp mainMenu];
+    NSMenuItem *audioMenuItem = [mainMenu itemWithTitle:@"Audio"];
+    if (!audioMenuItem || !audioMenuItem.submenu) return;
+    
+    NSMenu *audioMenu = audioMenuItem.submenu;
+    NSMenuItem *crossfeedParent = [audioMenu itemWithTitle:@"Headphone Crossfeed"];
+    if (crossfeedParent && crossfeedParent.submenu) {
+        SPCrossfeedMode currentCF = [SPAudioProcessor sharedProcessor].crossfeedMode;
+        for (NSMenuItem *item in crossfeedParent.submenu.itemArray) {
+            if (item.action == @selector(selectCrossfeedFromMenu:)) {
+                item.state = (item.tag == currentCF) ? NSControlStateValueOn : NSControlStateValueOff;
+            }
+        }
+    }
+    
+    NSMenuItem *widenerParent = [audioMenu itemWithTitle:@"SID Spatial Widener"];
+    if (widenerParent && widenerParent.submenu) {
+        SPSpatialWidenerMode currentW = [SPAudioProcessor sharedProcessor].spatialWidenerMode;
+        for (NSMenuItem *item in widenerParent.submenu.itemArray) {
+            if (item.action == @selector(selectWidenerFromMenu:)) {
+                item.state = (item.tag == currentW) ? NSControlStateValueOn : NSControlStateValueOff;
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+- (void) audioProcessorDidChangeNotification:(NSNotification*)notification
+// ----------------------------------------------------------------------------
+{
+    [self updateAudioMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
+- (void) selectCrossfeedFromMenu:(NSMenuItem *)sender
+// ----------------------------------------------------------------------------
+{
+    [SPAudioProcessor sharedProcessor].crossfeedMode = (SPCrossfeedMode)sender.tag;
+    [self updateAudioMenuChecks];
+    [spectrumView showNotification:[NSString stringWithFormat:@"🎧 %@", [[SPAudioProcessor sharedProcessor] localizedCrossfeedName]]];
+}
+
+// ----------------------------------------------------------------------------
+- (void) cycleCrossfeedFromMenu:(id)sender
+// ----------------------------------------------------------------------------
+{
+    [[SPAudioProcessor sharedProcessor] cycleCrossfeedMode];
+    [self updateAudioMenuChecks];
+    [spectrumView showNotification:[NSString stringWithFormat:@"🎧 %@", [[SPAudioProcessor sharedProcessor] localizedCrossfeedName]]];
+}
+
+// ----------------------------------------------------------------------------
+- (void) selectWidenerFromMenu:(NSMenuItem *)sender
+// ----------------------------------------------------------------------------
+{
+    [SPAudioProcessor sharedProcessor].spatialWidenerMode = (SPSpatialWidenerMode)sender.tag;
+    [self updateAudioMenuChecks];
+    [spectrumView showNotification:[NSString stringWithFormat:@"🔊 SID WIDENER: %@", [[SPAudioProcessor sharedProcessor] localizedSpatialWidenerName]]];
+}
+
+// ----------------------------------------------------------------------------
+- (void) cycleWidenerFromMenu:(id)sender
+// ----------------------------------------------------------------------------
+{
+    [[SPAudioProcessor sharedProcessor] cycleSpatialWidenerMode];
+    [self updateAudioMenuChecks];
+    [spectrumView showNotification:[NSString stringWithFormat:@"🔊 SID WIDENER: %@", [[SPAudioProcessor sharedProcessor] localizedSpatialWidenerName]]];
 }
 
 // ----------------------------------------------------------------------------

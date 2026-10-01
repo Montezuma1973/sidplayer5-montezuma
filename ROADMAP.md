@@ -102,3 +102,23 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
   - [x] Seamless view migration: moving visualizer to the desktop replaces the main window pane with an interactive dashed retro placeholder that docks back with a single click.
   - [x] Floating track overlay displaying current tune title, author, and chip model that auto-reveals on hover and track changes.
   - [x] Keyboard shortcuts (`D`/`Esc` to dock, `Space` for play/pause, `[`/`]` for subtunes, `C` for CRT, `P` for phosphor profiles, `V` for modes) and full context menu integration across visualizer, menu bar, and View menu (`⌃⌥D`).
+
+---
+
+## 🎧 Milestone 5: Audio Engine Architecture, Headphone Crossfeed & System Media
+
+- [x] **5.1 Headphone Stereo Crossfeed & Spatial Widener**
+  - [x] Stereo audio pipeline in `AudioCoreDriverNew` (interleaved L/R 16-bit PCM playback with master soft-limiting).
+  - [x] Authentic Paula stereo separation for Amiga modules in `SPModPlayer` (Channels 1 & 4 Left, Channels 2 & 3 Right) and multi-channel tracker panning.
+  - [x] Real-time Headphone Crossfeed DSP filter (Meier / Bauer crossfeed model to eliminate hard-panning listening fatigue on headphones).
+  - [x] Variable stereo width / crossfeed modes: *Natural Crossfeed (Headphones)*, *Subtle Crossfeed*, *Off (Authentic Hard Stereo)*, and *Mono Downmix*.
+  - [x] Stereo widening / Haas spatializer for mono SID and authentic dual-SID chip panning.
+  - [x] Audio menu, Menu Bar Mini-Player submenu, and Visualizer context menu controls with persistent user settings and animated HUD notifications.
+
+- [ ] **5.2 System Media Keys & macOS Now Playing Integration**
+  - [ ] Dynamic retro album artwork for macOS Now Playing / Control Center / Lock Screen (procedural retro cassette & floppy disk art with track metadata).
+  - [ ] Complete `MPRemoteCommandCenter` integration with hardware media key support, seek progress bar, and subtune navigation.
+
+- [ ] **5.3 Extended Lossless Audio Export**
+  - [ ] Lossless audio export (WAV / AIFF / FLAC) with embedded metadata and retro cover art alongside MP3.
+
