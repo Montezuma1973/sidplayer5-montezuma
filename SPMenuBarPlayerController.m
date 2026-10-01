@@ -2,6 +2,7 @@
 #import "SPPlayerWindow.h"
 #import "SPBrowserDataSource.h"
 #import "SPFloatingWidgetController.h"
+#import "SPAudioProcessor.h"
 
 static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
 
@@ -24,6 +25,8 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
     
     NSMenuItem *_loopMenuItem;
     NSMenuItem *_volumeParentMenuItem;
+    NSMenuItem *_crossfeedParentMenuItem;
+    NSMenuItem *_widenerParentMenuItem;
     NSMenuItem *_floatingWidgetMenuItem;
     
     // Cached state
@@ -262,6 +265,45 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
     _volumeParentMenuItem.submenu = volMenu;
     [_statusMenu addItem:_volumeParentMenuItem];
     
+    // 10b. Headphone Crossfeed
+    _crossfeedParentMenuItem = [[NSMenuItem alloc] initWithTitle:@"Headphone Crossfeed" action:nil keyEquivalent:@""];
+    NSMenu *cfMenu = [[NSMenu alloc] initWithTitle:@"Headphone Crossfeed"];
+    NSArray *cfNames = @[
+        @"Natural Crossfeed (Headphones)",
+        @"Subtle Crossfeed",
+        @"Off (Authentic Hard Stereo)",
+        @"Mono Downmix"
+    ];
+    for (NSInteger i = 0; i < 4; i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:cfNames[i]
+                                                      action:@selector(menuSelectCrossfeed:)
+                                               keyEquivalent:@""];
+        item.target = self;
+        item.tag = i;
+        [cfMenu addItem:item];
+    }
+    _crossfeedParentMenuItem.submenu = cfMenu;
+    [_statusMenu addItem:_crossfeedParentMenuItem];
+    
+    // 10c. SID Spatial Widener
+    _widenerParentMenuItem = [[NSMenuItem alloc] initWithTitle:@"SID Spatial Widener" action:nil keyEquivalent:@""];
+    NSMenu *wMenu = [[NSMenu alloc] initWithTitle:@"SID Spatial Widener"];
+    NSArray *wNames = @[
+        @"Off (Authentic Mono)",
+        @"Subtle Room Ambiance",
+        @"Expansive Soundstage"
+    ];
+    for (NSInteger i = 0; i < 3; i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:wNames[i]
+                                                      action:@selector(menuSelectWidener:)
+                                               keyEquivalent:@""];
+        item.target = self;
+        item.tag = i;
+        [wMenu addItem:item];
+    }
+    _widenerParentMenuItem.submenu = wMenu;
+    [_statusMenu addItem:_widenerParentMenuItem];
+    
     [_statusMenu addItem:[NSMenuItem separatorItem]];
     
     // 11. Open Main Window
@@ -352,8 +394,34 @@ static NSString * const kSPShowMenuBarItemKey = @"SPShowMenuBarItem";
         _floatingWidgetMenuItem.title = isDetached ? @"Dock Retro Visualizer" : @"Pop Out Floating Retro Visualizer";
     }
     
+    // 8. Crossfeed & Widener checkmarks
+    if (_crossfeedParentMenuItem && _crossfeedParentMenuItem.submenu) {
+        SPCrossfeedMode cf = [SPAudioProcessor sharedProcessor].crossfeedMode;
+        for (NSMenuItem *item in _crossfeedParentMenuItem.submenu.itemArray) {
+            item.state = (item.tag == (NSInteger)cf) ? NSControlStateValueOn : NSControlStateValueOff;
+        }
+    }
+    if (_widenerParentMenuItem && _widenerParentMenuItem.submenu) {
+        SPSpatialWidenerMode w = [SPAudioProcessor sharedProcessor].spatialWidenerMode;
+        for (NSMenuItem *item in _widenerParentMenuItem.submenu.itemArray) {
+            item.state = (item.tag == (NSInteger)w) ? NSControlStateValueOn : NSControlStateValueOff;
+        }
+    }
+    
     [self updateLoopMode];
     [self updateVolume];
+}
+
+- (void)menuSelectCrossfeed:(NSMenuItem *)sender
+{
+    [SPAudioProcessor sharedProcessor].crossfeedMode = (SPCrossfeedMode)sender.tag;
+    [self refreshDisplay];
+}
+
+- (void)menuSelectWidener:(NSMenuItem *)sender
+{
+    [SPAudioProcessor sharedProcessor].spatialWidenerMode = (SPSpatialWidenerMode)sender.tag;
+    [self refreshDisplay];
 }
 
 - (void)updatePlaybackState:(BOOL)isPlaying

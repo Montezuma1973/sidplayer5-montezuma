@@ -249,10 +249,11 @@ static inline BOOL IsKnownModExtension(NSString* ext)
 - (BOOL) setupPlayerWithSampleRate:(int)sampleRate defaultTitle:(NSString*)defaultTitle
 {
     mSampleRate = sampleRate > 0 ? sampleRate : 48000;
-    if (xmp_start_player(mCtx, mSampleRate, XMP_FORMAT_MONO) != 0) {
+    if (xmp_start_player(mCtx, mSampleRate, 0) != 0) {
         [self cleanup];
         return NO;
     }
+    xmp_set_player(mCtx, XMP_PLAYER_MIX, 100);
     
     struct xmp_module_info mi;
     xmp_get_module_info(mCtx, &mi);
@@ -385,18 +386,22 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     mCurrentTimeMs = fi.time;
     mTotalTimeMs = fi.total_time;
     
-    // Update oscilloscope buffers
+    // Update oscilloscope buffers (interleaved 16-bit stereo PCM)
     short* samples = (short*)buffer;
-    int sampleCount = len / sizeof(short);
-    for (int s = 0; s < sampleCount; s++) {
-        short sample = samples[s];
-        unsigned int idx = mScopeWriteIndex;
+    int frameCount = len / (2 * (int)sizeof(short));
+    for (int f = 0; f < frameCount; f++) {
+        short leftSample  = samples[f * 2];
+        short rightSample = samples[f * 2 + 1];
+        short avgSample   = (short)(((int)leftSample + (int)rightSample) / 2);
+        unsigned int idx  = mScopeWriteIndex;
         for (int ch = 0; ch < kMaxModChannels && ch < mNumChannels; ch++) {
             if (mVoiceMuted[ch]) {
                 mScopeBuffers[ch][idx] = 0;
             } else {
                 int vol = fi.channel_info[ch].volume; // 0..64
-                mScopeBuffers[ch][idx] = (short)((sample * vol) / 64);
+                // Channel placement: 0 & 3 Left, 1 & 2 Right (Paula 8364 layout)
+                short chSample = (ch == 0 || ch == 3) ? leftSample : ((ch == 1 || ch == 2) ? rightSample : avgSample);
+                mScopeBuffers[ch][idx] = (short)((chSample * vol) / 64);
             }
         }
         mScopeWriteIndex = (idx + 1) % kModScopeBufferSize;

@@ -493,7 +493,7 @@ static inline float approximate_dac(int x, float kinkiness)
     cfg.frequency      = mPlaybackSettings.mFrequency;
     cfg.samplingMethod = SidConfig::RESAMPLE_INTERPOLATE;
     cfg.fastSampling   = false;
-    cfg.playback       = SidConfig::MONO;
+    cfg.playback       = (mPlaybackSettings.mStereo || (mTuneInfo && mTuneInfo->sidChips() > 1)) ? SidConfig::STEREO : SidConfig::MONO;
     
     bool rc = mSidEmuEngine->config(cfg);
     if (!rc)
@@ -1287,26 +1287,35 @@ static inline float approximate_dac(int x, float kinkiness)
             mPreviousOversamplingFactor = mPlaybackSettings.mOversampling;
         }
         
-        // calculate n times as much sample data
+        int oversampledCount16 = count16 * mPlaybackSettings.mOversampling;
         if (!mExtUSBDeviceActive)
-            mSidEmuEngine->play((short *)mOversamplingBuffer, (count16 * mPlaybackSettings.mOversampling)/2);
+            mSidEmuEngine->play((short *)mOversamplingBuffer, oversampledCount16);
         
         short *oversampleBuffer = (short*) mOversamplingBuffer;
         short *outputBuffer = (short*) buffer;
-        long sample = 0;
+        int os = mPlaybackSettings.mOversampling;
         
-        // downsample n:1 where n = oversampling factor
-        for (int sampleCount = len / sizeof(short); sampleCount > 0; sampleCount--)
-        {
-            // calc arithmetic average (should rather be median?)
-            sample = 0;
-            
-            for (int i = 0; i < mPlaybackSettings.mOversampling; i++ )
-            {
-                sample += *oversampleBuffer++;
+        BOOL isStereo = (mPlaybackSettings.mStereo || (mTuneInfo && mTuneInfo->sidChips() > 1));
+        if (isStereo) {
+            int frameCount = count16 / 2;
+            for (int f = 0; f < frameCount; f++) {
+                long sumL = 0;
+                long sumR = 0;
+                for (int i = 0; i < os; i++) {
+                    sumL += *oversampleBuffer++;
+                    sumR += *oversampleBuffer++;
+                }
+                *outputBuffer++ = (short)(sumL / os);
+                *outputBuffer++ = (short)(sumR / os);
             }
-            
-            *outputBuffer++ = (short) (sample / mPlaybackSettings.mOversampling);
+        } else {
+            for (int sampleCount = count16; sampleCount > 0; sampleCount--) {
+                long sample = 0;
+                for (int i = 0; i < os; i++) {
+                    sample += *oversampleBuffer++;
+                }
+                *outputBuffer++ = (short)(sample / os);
+            }
         }
     }
 }
