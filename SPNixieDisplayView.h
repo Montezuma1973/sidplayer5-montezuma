@@ -16,6 +16,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) int subtune;
 @property (nonatomic, assign) int subtuneCount;
 @property (nonatomic, assign) BOOL showSubtune; // If YES, displays "01/05", if NO displays "MM:SS"
+@property (nonatomic, copy, nullable) NSString *customLabel;
+@property (nonatomic, copy, nullable) NSString *subLabel;
+@property (nonatomic, assign) BOOL allowToggleOnMouseDown;
+@property (nonatomic, copy, nullable) void (^clickHandler)(SPNixieDisplayView *view);
 
 - (void)setTimeInSeconds:(NSInteger)sec;
 - (void)setSubtune:(int)subtune count:(int)count;

@@ -22,6 +22,8 @@
 // Subviews
 @property (nonatomic, strong, readonly) SPNixieDisplayView *timeNixieView;
 @property (nonatomic, strong, readonly) SPNixieDisplayView *subtuneNixieView;
+@property (nonatomic, strong, readonly) NSButton *prevSubtuneBtn;
+@property (nonatomic, strong, readonly) NSButton *nextSubtuneBtn;
 @property (nonatomic, strong, readonly) SPCircularVectorScopeView *vectorScopeView;
 
 @property (nonatomic, strong, readonly) SPKnurledKnobControl *volumeKnob;
