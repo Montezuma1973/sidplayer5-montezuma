@@ -132,6 +132,8 @@
 			
 		case EXPORT_TYPE_ALAC:
 		case EXPORT_TYPE_AIFF:
+		case EXPORT_TYPE_WAV:
+		case EXPORT_TYPE_FLAC:
 		default:
 			return NO;
 			break;
@@ -146,6 +148,7 @@
 	long fileSize = 0;
     struct PlaybackSettings dummySettings;
     [gPreferences getPlaybackSettings:&dummySettings];
+	int channels = (settings.mFileType == EXPORT_TYPE_PRG) ? 1 : 2;
 	switch([settings mFileType])
 	{
 		case EXPORT_TYPE_MP3:
@@ -167,7 +170,12 @@
 			break;
 			
 		case EXPORT_TYPE_AIFF:
-            fileSize = [settings mTimeInSeconds] * dummySettings.mFrequency * sizeof(short);
+		case EXPORT_TYPE_WAV:
+            fileSize = [settings mTimeInSeconds] * dummySettings.mFrequency * sizeof(short) * channels;
+			break;
+
+		case EXPORT_TYPE_FLAC:
+			fileSize = (long)([settings mTimeInSeconds] * dummySettings.mFrequency * sizeof(short) * channels * 0.55f);
 			break;
 			
 		default:

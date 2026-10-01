@@ -508,6 +508,16 @@
                                                 <action selector="exportSelectedItems:" target="501" id="1434"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem title="WAV (uncompressed audio)" tag="5" id="2401">
+                                            <connections>
+                                                <action selector="exportSelectedItems:" target="501" id="2402"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="FLAC (lossless audio)" tag="6" id="2403">
+                                            <connections>
+                                                <action selector="exportSelectedItems:" target="501" id="2404"/>
+                                            </connections>
+                                        </menuItem>
                                     </items>
                                 </menu>
                             </menuItem>
@@ -2095,6 +2105,16 @@ DQ
                                     <action selector="exportSelectedItems:" target="501" id="1757"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="WAV (uncompressed audio)" tag="5" id="2405">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2406"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="FLAC (lossless audio)" tag="6" id="2407">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2408"/>
+                                </connections>
+                            </menuItem>
                         </items>
                     </menu>
                 </menuItem>
@@ -2157,6 +2177,16 @@ DQ
                             <menuItem title="PRG (C64 executable)" tag="4" id="1735">
                                 <connections>
                                     <action selector="exportSelectedItems:" target="501" id="1743"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="WAV (uncompressed audio)" tag="5" id="2409">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2410"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="FLAC (lossless audio)" tag="6" id="2411">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2412"/>
                                 </connections>
                             </menuItem>
                         </items>
@@ -2228,6 +2258,16 @@ DQ
                                     <action selector="exportSelectedItems:" target="501" id="2075"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="WAV (uncompressed audio)" tag="5" id="2413">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2414"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="FLAC (lossless audio)" tag="6" id="2415">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2416"/>
+                                </connections>
+                            </menuItem>
                         </items>
                     </menu>
                 </menuItem>
@@ -2291,6 +2331,16 @@ DQ
                             <menuItem title="PRG (C64 executable)" tag="4" id="2038">
                                 <connections>
                                     <action selector="exportSelectedItems:" target="501" id="2047"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="WAV (uncompressed audio)" tag="5" id="2417">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2418"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="FLAC (lossless audio)" tag="6" id="2419">
+                                <connections>
+                                    <action selector="exportSelectedItems:" target="501" id="2420"/>
                                 </connections>
                             </menuItem>
                         </items>
