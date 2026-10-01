@@ -92,15 +92,18 @@
     }
     
     // Tubes layout: 4 tubes + 1 separator colon/slash
-    CGFloat tubeMargin = 5.0f;
-    CGFloat bottomPad = 6.0f;
-    CGFloat availableH = h - 22.0f;
+    CGFloat tubeMargin = 4.0f;
+    CGFloat bottomPad = 5.0f;
+    CGFloat availableH = h - 20.0f;
     CGFloat tubeH = availableH - bottomPad;
-    CGFloat tubeW = (w - (tubeMargin * 6.0f) - 16.0f) / 4.0f;
-    if (tubeW > 38.0f) tubeW = 38.0f;
+    CGFloat sepW = _showSubtune ? 14.0f : 12.0f;
+    CGFloat tubeW = (w - (tubeMargin * 4.0f) - sepW - 8.0f) / 4.0f;
+    if (tubeW > 36.0f) tubeW = 36.0f;
+    if (tubeW < 12.0f) tubeW = 12.0f;
     
-    CGFloat totalWidth = (tubeW * 4.0f) + 16.0f + (tubeMargin * 4.0f);
+    CGFloat totalWidth = (tubeW * 4.0f) + sepW + (tubeMargin * 4.0f);
     CGFloat startX = (w - totalWidth) * 0.5f;
+    if (startX < 4.0f) startX = 4.0f;
     CGFloat tubeY = bottomPad;
     
     // Tube 1
@@ -113,16 +116,17 @@
     
     // Separator Tube
     CGFloat sepX = startX + (tubeW * 2.0f) + (tubeMargin * 2.0f);
-    NSRect sepRect = NSMakeRect(sepX, tubeY, 16.0f, tubeH);
+    NSRect sepRect = NSMakeRect(sepX, tubeY, sepW, tubeH);
     [self drawNixieTubeInRect:sepRect character:sep isSeparator:YES context:ctx];
     
     // Tube 3
-    CGFloat t3X = sepX + 16.0f + tubeMargin;
+    CGFloat t3X = sepX + sepW + tubeMargin;
     NSRect t3Rect = NSMakeRect(t3X, tubeY, tubeW, tubeH);
     [self drawNixieTubeInRect:t3Rect character:d3 isSeparator:NO context:ctx];
     
     // Tube 4
-    NSRect t4Rect = NSMakeRect(t3X + tubeW + tubeMargin, tubeY, tubeW, tubeH);
+    CGFloat t4X = t3X + tubeW + tubeMargin;
+    NSRect t4Rect = NSMakeRect(t4X, tubeY, tubeW, tubeH);
     [self drawNixieTubeInRect:t4Rect character:d4 isSeparator:NO context:ctx];
 }
 

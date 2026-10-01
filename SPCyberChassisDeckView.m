@@ -142,14 +142,15 @@
         CGFloat bottomY = 12.0f;
         CGFloat ctrlH = h - 24.0f;
         
-        // 1. Nixie Displays (Left bay)
+        // 1. Nixie Displays (Left bay - expanded horizontally for full 4-tube + separator display)
         CGFloat nixieH = MIN(75.0f, ctrlH - 36.0f);
         CGFloat nixieY = bottomY + 2.0f;
-        _timeNixieView.frame = NSMakeRect(20.0f, nixieY, 124.0f, nixieH);
-        _subtuneNixieView.frame = NSMakeRect(148.0f, nixieY, 84.0f, nixieH);
+        CGFloat nixieW = 145.0f;
+        _timeNixieView.frame = NSMakeRect(18.0f, nixieY, nixieW, nixieH);
+        _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 6.0f, nixieY, nixieW, nixieH);
         
         // 2. Knurled Knobs
-        CGFloat knobAreaX = 246.0f;
+        CGFloat knobAreaX = 18.0f + (nixieW * 2.0f) + 20.0f;
         CGFloat knobW = 68.0f;
         CGFloat knobH = MIN(120.0f, ctrlH);
         CGFloat knobY = bottomY + (ctrlH - knobH) * 0.5f;
@@ -180,10 +181,11 @@
     } else {
         // Standard / Compact Two-Row Layout (for dedicated window)
         CGFloat topRowY = h - 110.0f;
-        _timeNixieView.frame = NSMakeRect(20.0f, topRowY, 160.0f, 68.0f);
-        _subtuneNixieView.frame = NSMakeRect(186.0f, topRowY, 110.0f, 68.0f);
+        CGFloat nixieW = 145.0f;
+        _timeNixieView.frame = NSMakeRect(18.0f, topRowY, nixieW, 68.0f);
+        _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 6.0f, topRowY, nixieW, 68.0f);
         
-        CGFloat scopeSize = MIN(w - 320.0f - 24.0f, 150.0f);
+        CGFloat scopeSize = MIN(w - 330.0f - 24.0f, 150.0f);
         if (scopeSize > 50.0f) {
             _vectorScopeView.frame = NSMakeRect(w - scopeSize - 20.0f, h - scopeSize - 20.0f, scopeSize, scopeSize);
             _vectorScopeView.hidden = NO;
@@ -362,7 +364,9 @@
     // 3. Recessed Control Bays
     // Bay 1: Nixies
     if (!_timeNixieView.isHidden) {
-        NSRect bay1 = NSMakeRect(14.0f, 8.0f, 222.0f, h - 16.0f);
+        CGFloat b1X = _timeNixieView.frame.origin.x - 6.0f;
+        CGFloat b1W = (_subtuneNixieView.frame.origin.x + _subtuneNixieView.frame.size.width) - b1X + 6.0f;
+        NSRect bay1 = NSMakeRect(b1X, 8.0f, b1W, h - 16.0f);
         [[NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:0.92f] setFill];
         NSBezierPath *b1Path = [NSBezierPath bezierPathWithRoundedRect:bay1 xRadius:4.0f yRadius:4.0f];
         [b1Path fill];
@@ -375,7 +379,7 @@
         [[NSColor colorWithCalibratedRed:0.10f green:0.12f blue:0.15f alpha:0.85f] setFill];
         [[NSBezierPath bezierPathWithRoundedRect:placardRect xRadius:2.0f yRadius:2.0f] fill];
         
-        NSString *headerTitle = @"COMMODORE 64 // DECK";
+        NSString *headerTitle = @"COMMODORE 64 // TIME & SUBTUNE";
         NSDictionary *headAttr = @{
             NSFontAttributeName: [NSFont monospacedSystemFontOfSize:9.5f weight:NSFontWeightHeavy],
             NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.85f green:0.88f blue:0.95f alpha:0.9f]
