@@ -137,6 +137,12 @@
 		DAA000442E696C90001433DC /* SPAudioProcessor.mm in Sources */ = {isa = PBXBuildFile; fileRef = DAA000422E696C90001433DC /* SPAudioProcessor.mm */; };
 		DAA000502E696C90001433DC /* SPNowPlayingArtworkGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000522E696C90001433DC /* SPNowPlayingArtworkGenerator.m */; };
 		DAA000512E696C90001433DC /* SPNowPlayingArtworkGenerator.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000532E696C90001433DC /* SPNowPlayingArtworkGenerator.h */; };
+		DAA000602E696C90001433DC /* SPKnurledKnobControl.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000622E696C90001433DC /* SPKnurledKnobControl.m */; };
+		DAA000612E696C90001433DC /* SPKnurledKnobControl.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000632E696C90001433DC /* SPKnurledKnobControl.h */; };
+		DAA000702E696C90001433DC /* SPToggleSwitchControl.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000722E696C90001433DC /* SPToggleSwitchControl.m */; };
+		DAA000712E696C90001433DC /* SPToggleSwitchControl.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000732E696C90001433DC /* SPToggleSwitchControl.h */; };
+		DAA000802E696C90001433DC /* SPNixieDisplayView.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000822E696C90001433DC /* SPNixieDisplayView.m */; };
+		DAA000812E696C90001433DC /* SPNixieDisplayView.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000832E696C90001433DC /* SPNixieDisplayView.h */; };
 		DA17E52A2A04F6C800419CB8 /* residfp-builder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A82A04F36000419CB8 /* residfp-builder.cpp */; };
 		DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A72A04F36000419CB8 /* residfp-emu.cpp */; };
 		DA17E52C2A04F6D500419CB8 /* OpAmp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3AB2A04F36000419CB8 /* OpAmp.cpp */; };
@@ -506,6 +512,12 @@
 		DAA000432E696C90001433DC /* SPAudioProcessor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPAudioProcessor.h; sourceTree = "<group>"; };
 		DAA000522E696C90001433DC /* SPNowPlayingArtworkGenerator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPNowPlayingArtworkGenerator.m; sourceTree = "<group>"; };
 		DAA000532E696C90001433DC /* SPNowPlayingArtworkGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPNowPlayingArtworkGenerator.h; sourceTree = "<group>"; };
+		DAA000622E696C90001433DC /* SPKnurledKnobControl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPKnurledKnobControl.m; sourceTree = "<group>"; };
+		DAA000632E696C90001433DC /* SPKnurledKnobControl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPKnurledKnobControl.h; sourceTree = "<group>"; };
+		DAA000722E696C90001433DC /* SPToggleSwitchControl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPToggleSwitchControl.m; sourceTree = "<group>"; };
+		DAA000732E696C90001433DC /* SPToggleSwitchControl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPToggleSwitchControl.h; sourceTree = "<group>"; };
+		DAA000822E696C90001433DC /* SPNixieDisplayView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPNixieDisplayView.m; sourceTree = "<group>"; };
+		DAA000832E696C90001433DC /* SPNixieDisplayView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPNixieDisplayView.h; sourceTree = "<group>"; };
 		DA17E2EB2A04F36000419CB8 /* lightpen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lightpen.h; sourceTree = "<group>"; };
 		DA17E2EC2A04F36000419CB8 /* mos656x.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mos656x.h; sourceTree = "<group>"; };
 		DA17E2ED2A04F36000419CB8 /* mos656x.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mos656x.cpp; sourceTree = "<group>"; };
@@ -1025,6 +1037,12 @@
 				DAA000432E696C90001433DC /* SPAudioProcessor.h */,
 				DAA000522E696C90001433DC /* SPNowPlayingArtworkGenerator.m */,
 				DAA000532E696C90001433DC /* SPNowPlayingArtworkGenerator.h */,
+				DAA000622E696C90001433DC /* SPKnurledKnobControl.m */,
+				DAA000632E696C90001433DC /* SPKnurledKnobControl.h */,
+				DAA000722E696C90001433DC /* SPToggleSwitchControl.m */,
+				DAA000732E696C90001433DC /* SPToggleSwitchControl.h */,
+				DAA000822E696C90001433DC /* SPNixieDisplayView.m */,
+				DAA000832E696C90001433DC /* SPNixieDisplayView.h */,
 				DA529CBC2F9C162D00FD8AC7 /* PlayerUsbWorker.m */,
 				DA529CC32F9E250400FD8AC7 /* USBDeviceWatcher.m */,
 				DA529CC72F9E250C00FD8AC7 /* USBDeviceWatcher.h */,
@@ -1975,6 +1993,9 @@
 				DAA000302E696C90001433DC /* SPFloatingWidgetController.m in Sources */,
 				DAA000402E696C90001433DC /* SPAudioProcessor.mm in Sources */,
 				DAA000502E696C90001433DC /* SPNowPlayingArtworkGenerator.m in Sources */,
+				DAA000602E696C90001433DC /* SPKnurledKnobControl.m in Sources */,
+				DAA000702E696C90001433DC /* SPToggleSwitchControl.m in Sources */,
+				DAA000802E696C90001433DC /* SPNixieDisplayView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
