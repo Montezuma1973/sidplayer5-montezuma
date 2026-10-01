@@ -130,6 +130,14 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
     - Real-time updates for Title, Artist, Album / Format, Track Number & Total Count, Duration, and Elapsed Playback Time.
     - Synchronized `MPNowPlayingInfoPropertyPlaybackRate` (1.0 playing, 0.0 paused) with 1Hz throttled IPC to ensure clock accuracy.
 
-- [ ] **5.3 Extended Lossless Audio Export**
-  - [ ] Lossless audio export (WAV / AIFF / FLAC) with embedded metadata and retro cover art alongside MP3.
+- [x] **5.3 Extended Lossless Audio Export**
+  - [x] Full Lossless Audio Export suite supporting uncompressed **WAV** (`.wav`), **FLAC** (`.flac`), **AIFF** (`.aiff`), and Apple Lossless **ALAC** (`.m4a`), alongside **MP3** and **AAC**.
+  - [x] Authentic stereo export pipeline across all formats:
+    - 2-channel interleaved PCM rendering for Amiga MOD modules and stereo / dual-SID tunes.
+    - True stereo LAME MP3 encoding via `lame_encode_buffer_interleaved` with automatic stereo/mono channel mode selection.
+  - [x] Embedded rich metadata & procedural retro cover artwork:
+    - ID3v2 metadata (Title, Artist, Album, Track Number, Year, Genre, Comment) with embedded retro cover art in ID3v2 APIC frame for MP3s via LAME `id3tag_set_albumart`.
+    - Apple CoreAudio `AudioFile` metadata dictionary (`kAudioFilePropertyInfoDictionary`) and embedded artwork (`kAudioFilePropertyAlbumArtwork`) for ALAC, AAC, AIFF, WAV, and FLAC.
+    - Finder custom file icon application (`NSWorkspace.setIcon`) ensuring exported files display high-res Commodore C-60 Datasette cassette or Amiga Boing Ball artwork directly on the desktop and in Finder/Quick Look.
+  - [x] Extended Export UI with new "Export As" menu items across File menu, Table context menu, Playlist context menu, and Spotlight context menu.
 
