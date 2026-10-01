@@ -718,6 +718,81 @@ static void SPFFT(float *real, float *imag, int size)
     if ([NSDate timeIntervalSinceReferenceDate] < _hudDisplayUntil && [_hudText length] > 0) {
         [self drawHudOverlayInRect:bounds];
     }
+
+    // Render container border / frosted glass framing
+    [self drawContainerBordersInRect:bounds];
+}
+
+// ============================================================================
+#pragma mark - Visualizer Container Borders & Frosted Glass Framing
+// ============================================================================
+
+- (void)drawContainerBordersInRect:(NSRect)bounds
+{
+    SPThemeManager *tm = [SPThemeManager sharedManager];
+    
+    if (tm.currentTheme == SPAppThemeSystem) {
+        // Subtle 1px frosted glass separators at the top and bottom of the visualizer container
+        [[NSColor separatorColor] setStroke];
+        
+        // Top separator between Source List and Visualizer
+        NSBezierPath *topLine = [NSBezierPath bezierPath];
+        [topLine moveToPoint:NSMakePoint(0, bounds.size.height - 0.5f)];
+        [topLine lineToPoint:NSMakePoint(bounds.size.width, bounds.size.height - 0.5f)];
+        [topLine setLineWidth:1.0f];
+        [topLine stroke];
+        
+        // Subtle top highlight reflection (frosted glass shine)
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.06f] setStroke];
+        NSBezierPath *highlightLine = [NSBezierPath bezierPath];
+        [highlightLine moveToPoint:NSMakePoint(0, bounds.size.height - 1.5f)];
+        [highlightLine lineToPoint:NSMakePoint(bounds.size.width, bounds.size.height - 1.5f)];
+        [highlightLine setLineWidth:1.0f];
+        [highlightLine stroke];
+        
+        // Bottom separator between Visualizer and Utility Bar
+        [[NSColor separatorColor] setStroke];
+        NSBezierPath *bottomLine = [NSBezierPath bezierPath];
+        [bottomLine moveToPoint:NSMakePoint(0, 0.5f)];
+        [bottomLine lineToPoint:NSMakePoint(bounds.size.width, 0.5f)];
+        [bottomLine setLineWidth:1.0f];
+        [bottomLine stroke];
+    } else if (tm.currentTheme == SPAppThemeWorkbench31) {
+        // Amiga Workbench 3.1 3D Chisel Bevel
+        [[NSColor colorWithCalibratedWhite:1.0f alpha:0.8f] setStroke];
+        NSBezierPath *topBevel = [NSBezierPath bezierPath];
+        [topBevel moveToPoint:NSMakePoint(0, bounds.size.height - 0.5f)];
+        [topBevel lineToPoint:NSMakePoint(bounds.size.width, bounds.size.height - 0.5f)];
+        [topBevel setLineWidth:1.0f];
+        [topBevel stroke];
+        
+        [[NSColor colorWithCalibratedWhite:0.3f alpha:0.8f] setStroke];
+        NSBezierPath *bottomBevel = [NSBezierPath bezierPath];
+        [bottomBevel moveToPoint:NSMakePoint(0, 0.5f)];
+        [bottomBevel lineToPoint:NSMakePoint(bounds.size.width, 0.5f)];
+        [bottomBevel setLineWidth:1.0f];
+        [bottomBevel stroke];
+    } else if (tm.currentTheme == SPAppThemeWorkbench13) {
+        // Amiga Workbench 1.3 High-contrast black line
+        [[NSColor blackColor] setStroke];
+        NSBezierPath *line = [NSBezierPath bezierPath];
+        [line moveToPoint:NSMakePoint(0, bounds.size.height - 0.5f)];
+        [line lineToPoint:NSMakePoint(bounds.size.width, bounds.size.height - 0.5f)];
+        [line moveToPoint:NSMakePoint(0, 0.5f)];
+        [line lineToPoint:NSMakePoint(bounds.size.width, 0.5f)];
+        [line setLineWidth:1.0f];
+        [line stroke];
+    } else if (tm.currentTheme == SPAppThemeC64) {
+        // C64 Purple border
+        [[NSColor colorWithCalibratedRed:0.290f green:0.227f blue:0.620f alpha:1.0f] setStroke];
+        NSBezierPath *line = [NSBezierPath bezierPath];
+        [line moveToPoint:NSMakePoint(0, bounds.size.height - 0.5f)];
+        [line lineToPoint:NSMakePoint(bounds.size.width, bounds.size.height - 0.5f)];
+        [line moveToPoint:NSMakePoint(0, 0.5f)];
+        [line lineToPoint:NSMakePoint(bounds.size.width, 0.5f)];
+        [line setLineWidth:1.0f];
+        [line stroke];
+    }
 }
 
 // ============================================================================
@@ -1416,7 +1491,7 @@ static void SPFFT(float *real, float *imag, int size)
 {
     NSColor *bgColor = [[SPThemeManager sharedManager] visualizerBackgroundColor];
     [bgColor setFill];
-    NSRectFill(bounds);
+    NSRectFillUsingOperation(bounds, NSCompositingOperationSourceOver);
 
     // Hardware silicon chip badge in upper right corner
     NSRect chipRect = NSMakeRect(bounds.size.width - 96.0f, 6.0f, 88.0f, 18.0f);
@@ -1647,14 +1722,14 @@ static void SPFFT(float *real, float *imag, int size)
             break;
         case SPAppThemeSystem:
         default:
-            bgColor = [NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:1.0f];
+            bgColor = [NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:0.78f];
             textColor = [NSColor colorWithCalibratedWhite:0.90f alpha:1.0f];
             dimColor = [NSColor colorWithCalibratedWhite:0.45f alpha:1.0f];
             break;
     }
 
     [bgColor setFill];
-    NSRectFill(bounds);
+    NSRectFillUsingOperation(bounds, NSCompositingOperationSourceOver);
 
     NSFont *monoFont = [NSFont fontWithName:@"Menlo-Bold" size:10.0f] ?: [NSFont monospacedSystemFontOfSize:10.0f weight:NSFontWeightBold];
     NSFont *smallMono = [NSFont fontWithName:@"Menlo" size:8.5f] ?: [NSFont monospacedSystemFontOfSize:8.5f weight:NSFontWeightRegular];
@@ -1862,12 +1937,12 @@ static void SPFFT(float *real, float *imag, int size)
             break;
         case SPAppThemeSystem:
         default:
-            bgColor = [NSColor colorWithCalibratedRed:0.04f green:0.05f blue:0.07f alpha:1.0f];
+            bgColor = [NSColor colorWithCalibratedRed:0.04f green:0.05f blue:0.07f alpha:0.78f];
             break;
     }
 
     [bgColor setFill];
-    NSRectFill(bounds);
+    NSRectFillUsingOperation(bounds, NSCompositingOperationSourceOver);
 
     SPPlayerWindow *win = [self.ownerWindow isKindOfClass:[SPPlayerWindow class]] ? (SPPlayerWindow *)self.ownerWindow : nil;
     int numChannels = win ? [win activeChannelCount] : (_isMod ? 4 : 3);

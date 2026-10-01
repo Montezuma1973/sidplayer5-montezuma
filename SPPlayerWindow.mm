@@ -544,6 +544,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         [self layoutVoiceNotesView];
     });
 
+    [self setupSidebarVisualEffectView];
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChangeNotification:) name:SPThemeDidChangeNotification object:nil];
     [self setupThemeMenu];
     [self applyCurrentTheme];
@@ -2163,6 +2165,41 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 }
 
 // ----------------------------------------------------------------------------
+- (void) setupSidebarVisualEffectView
+// ----------------------------------------------------------------------------
+{
+    if (sidebarVisualEffectView != nil || leftView == nil) {
+        return;
+    }
+    
+    NSView *leftPane = (NSView *)leftView;
+    leftPane.wantsLayer = YES;
+    
+    NSRect leftBounds = leftPane.bounds;
+    sidebarVisualEffectView = [[NSVisualEffectView alloc] initWithFrame:leftBounds];
+    sidebarVisualEffectView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    sidebarVisualEffectView.material = NSVisualEffectMaterialSidebar;
+    sidebarVisualEffectView.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+    sidebarVisualEffectView.state = NSVisualEffectStateFollowsWindowActiveState;
+    sidebarVisualEffectView.wantsLayer = YES;
+    
+    // Insert behind all other subviews in leftView
+    [leftPane addSubview:sidebarVisualEffectView positioned:NSWindowBelow relativeTo:nil];
+    
+    // Ensure the source list scroll view doesn't paint an opaque background
+    SPSourceListView *sView = sourceListDataSource.sourceListView;
+    if (sView) {
+        NSScrollView *sourceScrollView = [sView enclosingScrollView];
+        if (sourceScrollView) {
+            sourceScrollView.drawsBackground = NO;
+            if (sourceScrollView.contentView) {
+                sourceScrollView.contentView.drawsBackground = NO;
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 - (void) applyCurrentTheme
 // ----------------------------------------------------------------------------
 {
@@ -2174,6 +2211,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         self.backgroundColor = [NSColor windowBackgroundColor];
     }
     self.appearance = [tm windowAppearance];
+    
+    if (sidebarVisualEffectView) {
+        sidebarVisualEffectView.hidden = (tm.currentTheme != SPAppThemeSystem);
+    }
     
     [boxView setNeedsDisplay:YES];
     [splitView setNeedsDisplay:YES];
@@ -2194,6 +2235,13 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     SPSourceListView *sView = sourceListDataSource.sourceListView;
     if (sView) {
         sView.backgroundColor = [tm sourceListBackgroundColor];
+        NSScrollView *sourceScrollView = [sView enclosingScrollView];
+        if (sourceScrollView) {
+            sourceScrollView.drawsBackground = NO;
+            if (sourceScrollView.contentView) {
+                sourceScrollView.contentView.drawsBackground = NO;
+            }
+        }
         [sView setNeedsDisplay:YES];
         [sView reloadData];
     }
