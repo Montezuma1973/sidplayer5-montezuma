@@ -128,6 +128,8 @@
 		DAA000042E696C90001433DC /* SPModPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000022E696C90001433DC /* SPModPlayer.h */; };
 		DAA000102E696C90001433DC /* SPThemeManager.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000122E696C90001433DC /* SPThemeManager.m */; };
 		DAA000112E696C90001433DC /* SPThemeManager.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000132E696C90001433DC /* SPThemeManager.h */; };
+		DAA000202E696C90001433DC /* SPMenuBarPlayerController.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000222E696C90001433DC /* SPMenuBarPlayerController.m */; };
+		DAA000212E696C90001433DC /* SPMenuBarPlayerController.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000232E696C90001433DC /* SPMenuBarPlayerController.h */; };
 		DA17E52A2A04F6C800419CB8 /* residfp-builder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A82A04F36000419CB8 /* residfp-builder.cpp */; };
 		DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A72A04F36000419CB8 /* residfp-emu.cpp */; };
 		DA17E52C2A04F6D500419CB8 /* OpAmp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3AB2A04F36000419CB8 /* OpAmp.cpp */; };
@@ -489,6 +491,8 @@
 		DAA000022E696C90001433DC /* SPModPlayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPModPlayer.h; sourceTree = "<group>"; };
 		DAA000122E696C90001433DC /* SPThemeManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPThemeManager.m; sourceTree = "<group>"; };
 		DAA000132E696C90001433DC /* SPThemeManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPThemeManager.h; sourceTree = "<group>"; };
+		DAA000222E696C90001433DC /* SPMenuBarPlayerController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPMenuBarPlayerController.m; sourceTree = "<group>"; };
+		DAA000232E696C90001433DC /* SPMenuBarPlayerController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPMenuBarPlayerController.h; sourceTree = "<group>"; };
 		DA17E2EB2A04F36000419CB8 /* lightpen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lightpen.h; sourceTree = "<group>"; };
 		DA17E2EC2A04F36000419CB8 /* mos656x.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mos656x.h; sourceTree = "<group>"; };
 		DA17E2ED2A04F36000419CB8 /* mos656x.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mos656x.cpp; sourceTree = "<group>"; };
@@ -1000,6 +1004,8 @@
 				DAA000022E696C90001433DC /* SPModPlayer.h */,
 				DAA000122E696C90001433DC /* SPThemeManager.m */,
 				DAA000132E696C90001433DC /* SPThemeManager.h */,
+				DAA000222E696C90001433DC /* SPMenuBarPlayerController.m */,
+				DAA000232E696C90001433DC /* SPMenuBarPlayerController.h */,
 				DA529CBC2F9C162D00FD8AC7 /* PlayerUsbWorker.m */,
 				DA529CC32F9E250400FD8AC7 /* USBDeviceWatcher.m */,
 				DA529CC72F9E250C00FD8AC7 /* USBDeviceWatcher.h */,
@@ -1970,6 +1976,7 @@
 				DA10945E2CE696C9001433DC /* PlayerLibSidplayWrapper.mm in Sources */,
 				DAA000032E696C90001433DC /* SPModPlayer.mm in Sources */,
 				DAA000102E696C90001433DC /* SPThemeManager.m in Sources */,
+				DAA000202E696C90001433DC /* SPMenuBarPlayerController.m in Sources */,
 				DA59B0C12A05224900233549 /* tod.cpp in Sources */,
 				DA17E54C2A04F79E00419CB8 /* prg.cpp in Sources */,
 				DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */,

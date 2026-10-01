@@ -17,6 +17,7 @@
 #import "SPSpectrumView.h"
 #import "SPSidNoteUtils.h"
 #import "SPMixerView.h"
+#import "SPMenuBarPlayerController.h"
 
 #import "PlayerLibSidplayWrapper.h"
 
@@ -768,6 +769,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 
         [MPNowPlayingInfoCenter defaultCenter].playbackState = MPNowPlayingPlaybackStatePlaying;
         showPlayButton = false;
+        [[SPMenuBarPlayerController sharedController] updatePlaybackState:YES];
     }
     else
     {
@@ -779,6 +781,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 
         [MPNowPlayingInfoCenter defaultCenter].playbackState = MPNowPlayingPlaybackStatePaused;
         showPlayButton = true;
+        [[SPMenuBarPlayerController sharedController] updatePlaybackState:NO];
     }
 }
 
@@ -1092,6 +1095,10 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
                                 totalTime:totalTime
                                 tuneTitle:title
                                 chipModel:chipName];
+
+        [[SPMenuBarPlayerController sharedController] updatePlaybackTime:playTime
+                                                               totalTime:totalTime
+                                                               isPlaying:isPlaying];
     }
 }
 
@@ -1154,6 +1161,15 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [statusDisplay setChipBadge:chipName isMod:[player isCurrentTuneMod]];
     [miniStatusDisplay setTitle:title andAuthor:author andReleaseInfo:releaseInfo andSubtune:currentSubtune ofSubtunes:subtuneCount withSonglength:(int)currentTuneLengthInSeconds];
     [miniStatusDisplay setChipBadge:chipName isMod:[player isCurrentTuneMod]];
+    
+    [[SPMenuBarPlayerController sharedController] updateTuneTitle:title
+                                                           author:author
+                                                      releaseInfo:releaseInfo
+                                                          subtune:currentSubtune
+                                                     subtuneCount:subtuneCount
+                                                           length:(int)currentTuneLengthInSeconds
+                                                             chip:chipName
+                                                            isMod:[player isCurrentTuneMod]];
     
     [[SPPreferencesController sharedInstance] initializeFilterSettingsFromChipModelOfPlayer:player];
     
@@ -1748,6 +1764,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         volumeSlider.floatValue = [sender floatValue];
     else if (sender == volumeSlider)
         miniVolumeSlider.floatValue = [sender floatValue];
+    [[SPMenuBarPlayerController sharedController] updateVolume];
 }
 
 // ----------------------------------------------------------------------------
@@ -1760,6 +1777,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     volumeSlider.floatValue = gPreferences.mPlaybackVolume * 100.0f;
     miniVolumeSlider.floatValue = gPreferences.mPlaybackVolume * 100.0f;
     volumeIsMuted = NO;
+    [[SPMenuBarPlayerController sharedController] updateVolume];
 }
 
 // ----------------------------------------------------------------------------
@@ -1771,6 +1789,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     audioDriver->setVolume(gPreferences.mPlaybackVolume);
     volumeSlider.floatValue = gPreferences.mPlaybackVolume * 100.0f;
     miniVolumeSlider.floatValue = gPreferences.mPlaybackVolume * 100.0f;
+    [[SPMenuBarPlayerController sharedController] updateVolume];
 }
 
 // ----------------------------------------------------------------------------
@@ -1790,6 +1809,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         volumeSlider.floatValue = 0.0f;
         miniVolumeSlider.floatValue = 0.0f;
     }
+    [[SPMenuBarPlayerController sharedController] updateVolume];
 }
 
 // ----------------------------------------------------------------------------
@@ -2132,6 +2152,13 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             
             themeParentItem.submenu = themeMenu;
             [viewMenu addItem:themeParentItem];
+            
+            [viewMenu addItem:[NSMenuItem separatorItem]];
+            NSMenuItem *miniPlayerItem = [[NSMenuItem alloc] initWithTitle:@"Show Menu Bar Mini-Player" action:@selector(toggleMenuBarMiniPlayer:) keyEquivalent:@"m"];
+            miniPlayerItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+            miniPlayerItem.target = self;
+            miniPlayerItem.tag = 7771;
+            [viewMenu addItem:miniPlayerItem];
         }
     }
     [self updateThemeMenuChecks];
@@ -2160,6 +2187,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
                     item.state = (item.tag == current) ? NSControlStateValueOn : NSControlStateValueOff;
                 }
             }
+        }
+        
+        NSMenuItem *miniPlayerItem = [viewMenuItem.submenu itemWithTag:7771];
+        if (miniPlayerItem) {
+            miniPlayerItem.state = [SPMenuBarPlayerController sharedController].isEnabled ? NSControlStateValueOn : NSControlStateValueOff;
         }
     }
 }
@@ -2290,6 +2322,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     
     [statusDisplay setNeedsDisplay:YES];
     [miniStatusDisplay setNeedsDisplay:YES];
+    [[SPMenuBarPlayerController sharedController] updateLoopMode];
 }
 
 // ----------------------------------------------------------------------------
@@ -2304,6 +2337,48 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 // ----------------------------------------------------------------------------
 {
     return gPreferences.mRepeatActive;
+}
+
+// ----------------------------------------------------------------------------
+- (BOOL) isAudioPlaying
+// ----------------------------------------------------------------------------
+{
+    if (audioDriver != nil) {
+        return audioDriver->getIsPlaying();
+    }
+    return (player != nil) ? [player isPlaying] : NO;
+}
+
+// ----------------------------------------------------------------------------
+- (float) playbackVolume
+// ----------------------------------------------------------------------------
+{
+    return gPreferences.mPlaybackVolume;
+}
+
+// ----------------------------------------------------------------------------
+- (void) setPlaybackVolume:(float)volume
+// ----------------------------------------------------------------------------
+{
+    if (volume < 0.0f) volume = 0.0f;
+    if (volume > 1.0f) volume = 1.0f;
+    gPreferences.mPlaybackVolume = volume;
+    if (audioDriver != nil) {
+        audioDriver->setVolume(volume);
+    }
+    volumeSlider.floatValue = volume * 100.0f;
+    miniVolumeSlider.floatValue = volume * 100.0f;
+    volumeIsMuted = (volume == 0.0f);
+    [[SPMenuBarPlayerController sharedController] updateVolume];
+}
+
+// ----------------------------------------------------------------------------
+- (IBAction) toggleMenuBarMiniPlayer:(id)sender
+// ----------------------------------------------------------------------------
+{
+    SPMenuBarPlayerController *mbc = [SPMenuBarPlayerController sharedController];
+    mbc.enabled = !mbc.isEnabled;
+    [self updateThemeMenuChecks];
 }
 
 // ----------------------------------------------------------------------------
@@ -2594,6 +2669,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     NSWindow* syncProgressDialog = [sourceListDataSource syncProgressDialog];
     if (syncProgressDialog != nil && !syncProgressDialog.visible)
         [self makeKeyAndOrderFront:self];
+        
+    [[SPMenuBarPlayerController sharedController] setupWithPlayerWindow:self];
 }
 
 // ----------------------------------------------------------------------------
