@@ -95,5 +95,10 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
   - [x] Volume control submenu with quick-access presets (100%, 75%, 50%, 25%, Mute) and active level indicators.
   - [x] Main window activation, preferences shortcut, dynamic menu bar hover tooltip, and View menu visibility toggle with `NSUserDefaults` persistence.
 
-- [ ] **4.2 Detachable Floating Retro Widget**
-  - [ ] Ability to pop out the retro visualizer (Boing Ball / Cassette / Floppy) into a compact, borderless floating desktop window.
+- [x] **4.2 Detachable Floating Retro Widget**
+  - [x] Ability to pop out the retro visualizer (Boing Ball / Cassette / Floppy / Spectrum / Tracker / Piano Roll) into a compact, borderless floating desktop window (`SPFloatingWidgetWindow`).
+  - [x] Translucent HUD frosted glass panel with 12px rounded corners, continuous curve, native traffic light close button, and subtle top-right docking icon button (`⤓`).
+  - [x] Drag anywhere on the visualizer canvas to move the widget smoothly on the desktop; window maintains authentic 16:10 retro monitor aspect ratio during resizing with saved geometry.
+  - [x] Seamless view migration: moving visualizer to the desktop replaces the main window pane with an interactive dashed retro placeholder that docks back with a single click.
+  - [x] Floating track overlay displaying current tune title, author, and chip model that auto-reveals on hover and track changes.
+  - [x] Keyboard shortcuts (`D`/`Esc` to dock, `Space` for play/pause, `[`/`]` for subtunes, `C` for CRT, `P` for phosphor profiles, `V` for modes) and full context menu integration across visualizer, menu bar, and View menu (`⌃⌥D`).

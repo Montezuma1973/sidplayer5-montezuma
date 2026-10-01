@@ -54,6 +54,8 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
         float velocity;
     } _waterfallNotes[128];
     int _waterfallCount;
+    NSPoint _mouseDownPoint;
+    BOOL _didDragWindow;
 }
 
 // ----------------------------------------------------------------------------
@@ -288,6 +290,35 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
 - (void)mouseDown:(NSEvent *)event
 // ----------------------------------------------------------------------------
 {
+    _mouseDownPoint = event.locationInWindow;
+    _didDragWindow = NO;
+}
+
+// ----------------------------------------------------------------------------
+- (void)mouseDragged:(NSEvent *)event
+// ----------------------------------------------------------------------------
+{
+    if (_isDetachedInFloatingWidget || [self.window isKindOfClass:NSClassFromString(@"SPFloatingWidgetWindow")]) {
+        NSPoint currentPoint = event.locationInWindow;
+        CGFloat dx = currentPoint.x - _mouseDownPoint.x;
+        CGFloat dy = currentPoint.y - _mouseDownPoint.y;
+        if (hypot(dx, dy) > 2.5f) {
+            _didDragWindow = YES;
+            [self.window performWindowDragWithEvent:event];
+            return;
+        }
+    }
+    [super mouseDragged:event];
+}
+
+// ----------------------------------------------------------------------------
+- (void)mouseUp:(NSEvent *)event
+// ----------------------------------------------------------------------------
+{
+    if (_didDragWindow) {
+        _didDragWindow = NO;
+        return;
+    }
     if ([event clickCount] == 2) {
         [self toggleCRTEffect];
     } else {
@@ -376,6 +407,16 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
 
     [crtSubmenuItem setSubmenu:crtSubmenu];
     [menu addItem:crtSubmenuItem];
+
+    // Detach / Dock Menu Item
+    [menu addItem:[NSMenuItem separatorItem]];
+    NSString *dockTitle = _isDetachedInFloatingWidget ? @"Dock into Main Window" : @"Pop Out as Floating Widget";
+    NSMenuItem *dockItem = [[NSMenuItem alloc] initWithTitle:dockTitle
+                                                      action:@selector(toggleFloatingVisualizerWidget:)
+                                               keyEquivalent:@"d"];
+    dockItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+    dockItem.target = _ownerWindow;
+    [menu addItem:dockItem];
 
     return menu;
 }
