@@ -37,9 +37,13 @@
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    // Click to cycle between Elapsed Time and Subtune counter
-    self.showSubtune = !self.showSubtune;
-    [self setNeedsDisplay:YES];
+    [super mouseDown:event];
+    if (self.clickHandler) {
+        self.clickHandler(self);
+    } else if (self.allowToggleOnMouseDown) {
+        self.showSubtune = !self.showSubtune;
+        [self setNeedsDisplay:YES];
+    }
 }
 
 #pragma mark - Drawing
@@ -60,16 +64,25 @@
     bgPath.lineWidth = 1.0f;
     [bgPath stroke];
     
-    // Header Label
+    // Header Label (Top badge)
     NSMutableParagraphStyle *hdrStyle = [[NSMutableParagraphStyle alloc] init];
     hdrStyle.alignment = NSTextAlignmentCenter;
     NSDictionary *hdrAttrs = @{
-        NSFontAttributeName: [NSFont boldSystemFontOfSize:8.5f],
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.60f green:0.64f blue:0.72f alpha:1.0f],
+        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:9.0f weight:NSFontWeightHeavy],
+        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.80f blue:0.35f alpha:0.95f],
         NSParagraphStyleAttributeName: hdrStyle
     };
-    NSString *hdrText = _showSubtune ? @"SUBTUNE (CLICK FOR TIME)" : @"ELAPSED TIME (CLICK FOR SUB)";
-    [hdrText drawInRect:NSMakeRect(0, h - 14.0f, w, 11.0f) withAttributes:hdrAttrs];
+    NSString *hdrText = _customLabel ?: (_showSubtune ? @"SUBTUNE SONG" : @"TRACK TIME");
+    [hdrText drawInRect:NSMakeRect(0, h - 14.0f, w, 12.0f) withAttributes:hdrAttrs];
+    
+    // Sub-Label (Bottom annotation)
+    NSDictionary *subAttrs = @{
+        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:7.5f weight:NSFontWeightBold],
+        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.60f green:0.78f blue:0.88f alpha:0.90f],
+        NSParagraphStyleAttributeName: hdrStyle
+    };
+    NSString *subText = _subLabel ?: (_showSubtune ? @"CURRENT / TOTAL" : @"MINUTES : SECONDS");
+    [subText drawInRect:NSMakeRect(0, 1.0f, w, 10.0f) withAttributes:subAttrs];
     
     // Determine 4 digits & separator
     NSString *d1 = @"0", *d2 = @"0", *sep = @":", *d3 = @"0", *d4 = @"0";
@@ -93,9 +106,9 @@
     
     // Tubes layout: 4 tubes + 1 separator colon/slash
     CGFloat tubeMargin = 4.0f;
-    CGFloat bottomPad = 5.0f;
-    CGFloat availableH = h - 20.0f;
-    CGFloat tubeH = availableH - bottomPad;
+    CGFloat bottomPad = 12.0f;
+    CGFloat topPad = 15.0f;
+    CGFloat tubeH = h - bottomPad - topPad;
     CGFloat sepW = _showSubtune ? 14.0f : 12.0f;
     CGFloat tubeW = (w - (tubeMargin * 4.0f) - sepW - 8.0f) / 4.0f;
     if (tubeW > 36.0f) tubeW = 36.0f;

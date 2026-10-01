@@ -13,6 +13,56 @@
 #import "SPThemeManager.h"
 #import <QuartzCore/QuartzCore.h>
 
+@interface SPCyberDeckButton : NSButton
+@end
+
+@implementation SPCyberDeckButton
+
+- (instancetype)initWithFrame:(NSRect)frameRect title:(NSString *)title
+{
+    self = [super initWithFrame:frameRect];
+    if (self) {
+        self.title = title;
+        self.bezelStyle = NSBezelStyleRegularSquare;
+        [self setButtonType:NSButtonTypeMomentaryPushIn];
+        [self setBordered:NO];
+    }
+    return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+    NSRect bounds = self.bounds;
+    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(bounds, 0.5f, 0.5f) xRadius:3.5f yRadius:3.5f];
+    
+    BOOL isPressed = [self.cell isHighlighted];
+    NSColor *topColor = isPressed ? [NSColor colorWithCalibratedWhite:0.12f alpha:1.0f] : [NSColor colorWithCalibratedWhite:0.25f alpha:1.0f];
+    NSColor *botColor = isPressed ? [NSColor colorWithCalibratedWhite:0.06f alpha:1.0f] : [NSColor colorWithCalibratedWhite:0.13f alpha:1.0f];
+    NSGradient *grad = [[NSGradient alloc] initWithStartingColor:topColor endingColor:botColor];
+    [grad drawInBezierPath:path angle:-90.0f];
+    
+    NSColor *strokeCol = isPressed ? [NSColor colorWithCalibratedRed:1.0f green:0.80f blue:0.30f alpha:0.95f]
+                                   : [NSColor colorWithCalibratedRed:0.35f green:0.40f blue:0.48f alpha:0.85f];
+    [strokeCol setStroke];
+    path.lineWidth = 1.0f;
+    [path stroke];
+    
+    NSMutableParagraphStyle *style = [[NSMutableParagraphStyle alloc] init];
+    style.alignment = NSTextAlignmentCenter;
+    NSFont *font = [NSFont boldSystemFontOfSize:11.0f];
+    NSColor *textCol = isPressed ? [NSColor colorWithCalibratedRed:1.0f green:0.85f blue:0.35f alpha:1.0f]
+                                 : [NSColor colorWithCalibratedRed:0.88f green:0.92f blue:0.96f alpha:0.95f];
+    NSDictionary *attrs = @{
+        NSFontAttributeName: font,
+        NSForegroundColorAttributeName: textCol,
+        NSParagraphStyleAttributeName: style
+    };
+    CGFloat textH = [font pointSize] + 2.0f;
+    CGFloat textY = (bounds.size.height - textH) * 0.5f;
+    [self.title drawInRect:NSMakeRect(0, textY, bounds.size.width, textH) withAttributes:attrs];
+}
+
+@end
+
 @interface SPCyberChassisDeckView ()
 {
     NSTextField *_statusTitleField;
@@ -45,16 +95,41 @@
     [self setWantsLayer:YES];
     
     // 1. Time Nixie Display (MM:SS)
-    _timeNixieView = [[SPNixieDisplayView alloc] initWithFrame:NSMakeRect(20, 10, 120, 60)];
+    _timeNixieView = [[SPNixieDisplayView alloc] initWithFrame:NSMakeRect(18, 10, 142, 74)];
     _timeNixieView.showSubtune = NO;
+    _timeNixieView.allowToggleOnMouseDown = NO;
+    _timeNixieView.customLabel = @"TRACK TIME";
+    _timeNixieView.subLabel = @"MINUTES : SECONDS";
+    _timeNixieView.toolTip = @"Playback Elapsed Time (Minutes : Seconds)";
     [_timeNixieView setTimeInSeconds:0];
     [self addSubview:_timeNixieView];
     
     // 2. Subtune Nixie Display (01/01)
-    _subtuneNixieView = [[SPNixieDisplayView alloc] initWithFrame:NSMakeRect(145, 10, 80, 60)];
+    _subtuneNixieView = [[SPNixieDisplayView alloc] initWithFrame:NSMakeRect(168, 10, 142, 74)];
     _subtuneNixieView.showSubtune = YES;
+    _subtuneNixieView.allowToggleOnMouseDown = NO;
+    _subtuneNixieView.customLabel = @"SUBTUNE SONG";
+    _subtuneNixieView.subLabel = @"CURRENT / TOTAL";
+    _subtuneNixieView.toolTip = @"Subtune Song: Current / Total Songs in SID file (Click to step forward)";
+    __weak typeof(self) weakSelf = self;
+    _subtuneNixieView.clickHandler = ^(SPNixieDisplayView *v) {
+        [weakSelf nextSubtuneClicked:v];
+    };
     [_subtuneNixieView setSubtune:1 count:1];
     [self addSubview:_subtuneNixieView];
+    
+    // 2b. Subtune Stepper Buttons (◀ and ▶)
+    _prevSubtuneBtn = [[SPCyberDeckButton alloc] initWithFrame:NSMakeRect(316, 10, 26, 32) title:@"◀"];
+    _prevSubtuneBtn.toolTip = @"Previous Subtune Song";
+    _prevSubtuneBtn.target = self;
+    _prevSubtuneBtn.action = @selector(prevSubtuneClicked:);
+    [self addSubview:_prevSubtuneBtn];
+    
+    _nextSubtuneBtn = [[SPCyberDeckButton alloc] initWithFrame:NSMakeRect(316, 46, 26, 32) title:@"▶"];
+    _nextSubtuneBtn.toolTip = @"Next Subtune Song";
+    _nextSubtuneBtn.target = self;
+    _nextSubtuneBtn.action = @selector(nextSubtuneClicked:);
+    [self addSubview:_nextSubtuneBtn];
     
     // 3. Circular Phosphor Vector Scope
     _vectorScopeView = [[SPCircularVectorScopeView alloc] initWithFrame:NSMakeRect(600, 10, 160, 160)];
@@ -143,14 +218,21 @@
         CGFloat ctrlH = h - 24.0f;
         
         // 1. Nixie Displays (Left bay - expanded horizontally for full 4-tube + separator display)
-        CGFloat nixieH = MIN(75.0f, ctrlH - 36.0f);
-        CGFloat nixieY = bottomY + 2.0f;
-        CGFloat nixieW = 145.0f;
+        CGFloat nixieH = MIN(78.0f, ctrlH - 4.0f);
+        CGFloat nixieY = bottomY + (ctrlH - nixieH) * 0.5f;
+        CGFloat nixieW = 142.0f;
         _timeNixieView.frame = NSMakeRect(18.0f, nixieY, nixieW, nixieH);
-        _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 6.0f, nixieY, nixieW, nixieH);
+        _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 8.0f, nixieY, nixieW, nixieH);
+        
+        // Subtune Stepper buttons (◀ and ▶)
+        CGFloat btnX = 18.0f + (nixieW * 2.0f) + 12.0f;
+        CGFloat btnW = 26.0f;
+        CGFloat btnH = (nixieH - 4.0f) * 0.5f;
+        _nextSubtuneBtn.frame = NSMakeRect(btnX, nixieY + btnH + 4.0f, btnW, btnH);
+        _prevSubtuneBtn.frame = NSMakeRect(btnX, nixieY, btnW, btnH);
         
         // 2. Knurled Knobs
-        CGFloat knobAreaX = 18.0f + (nixieW * 2.0f) + 20.0f;
+        CGFloat knobAreaX = btnX + btnW + 16.0f;
         CGFloat knobW = 68.0f;
         CGFloat knobH = MIN(120.0f, ctrlH);
         CGFloat knobY = bottomY + (ctrlH - knobH) * 0.5f;
@@ -181,11 +263,18 @@
     } else {
         // Standard / Compact Two-Row Layout (for dedicated window)
         CGFloat topRowY = h - 110.0f;
-        CGFloat nixieW = 145.0f;
-        _timeNixieView.frame = NSMakeRect(18.0f, topRowY, nixieW, 68.0f);
-        _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 6.0f, topRowY, nixieW, 68.0f);
+        CGFloat nixieW = 142.0f;
+        CGFloat nixieH = 74.0f;
+        _timeNixieView.frame = NSMakeRect(18.0f, topRowY, nixieW, nixieH);
+        _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 8.0f, topRowY, nixieW, nixieH);
         
-        CGFloat scopeSize = MIN(w - 330.0f - 24.0f, 150.0f);
+        CGFloat btnX = 18.0f + (nixieW * 2.0f) + 12.0f;
+        CGFloat btnW = 26.0f;
+        CGFloat btnH = (nixieH - 4.0f) * 0.5f;
+        _nextSubtuneBtn.frame = NSMakeRect(btnX, topRowY + btnH + 4.0f, btnW, btnH);
+        _prevSubtuneBtn.frame = NSMakeRect(btnX, topRowY, btnW, btnH);
+        
+        CGFloat scopeSize = MIN(w - 370.0f - 24.0f, 150.0f);
         if (scopeSize > 50.0f) {
             _vectorScopeView.frame = NSMakeRect(w - scopeSize - 20.0f, h - scopeSize - 20.0f, scopeSize, scopeSize);
             _vectorScopeView.hidden = NO;
@@ -203,6 +292,20 @@
         _loopToggle.frame = NSMakeRect(togX + 48.0f, 18.0f, 44.0f, botH);
         _stereoSidToggle.frame = NSMakeRect(togX + 96.0f, 18.0f, 44.0f, botH);
         _scopeModeToggle.frame = NSMakeRect(togX + 144.0f, 18.0f, 44.0f, botH);
+    }
+}
+
+- (void)prevSubtuneClicked:(id)sender
+{
+    if (_playerWindow) {
+        [_playerWindow previousSubtune:sender];
+    }
+}
+
+- (void)nextSubtuneClicked:(id)sender
+{
+    if (_playerWindow) {
+        [_playerWindow nextSubtune:sender];
     }
 }
 
@@ -365,7 +468,8 @@
     // Bay 1: Nixies
     if (!_timeNixieView.isHidden) {
         CGFloat b1X = _timeNixieView.frame.origin.x - 6.0f;
-        CGFloat b1W = (_subtuneNixieView.frame.origin.x + _subtuneNixieView.frame.size.width) - b1X + 6.0f;
+        CGFloat b1Right = _nextSubtuneBtn ? (_nextSubtuneBtn.frame.origin.x + _nextSubtuneBtn.frame.size.width) : (_subtuneNixieView.frame.origin.x + _subtuneNixieView.frame.size.width);
+        CGFloat b1W = b1Right - b1X + 6.0f;
         NSRect bay1 = NSMakeRect(b1X, 8.0f, b1W, h - 16.0f);
         [[NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:0.92f] setFill];
         NSBezierPath *b1Path = [NSBezierPath bezierPathWithRoundedRect:bay1 xRadius:4.0f yRadius:4.0f];
