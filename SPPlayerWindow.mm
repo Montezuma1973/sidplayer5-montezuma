@@ -20,6 +20,7 @@
 #import "SPMenuBarPlayerController.h"
 #import "SPFloatingWidgetController.h"
 #import "SPAudioProcessor.h"
+#import "SPNowPlayingArtworkGenerator.h"
 
 #import "PlayerLibSidplayWrapper.h"
 
@@ -619,14 +620,24 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     commandCenter.togglePlayPauseCommand.enabled = YES;
     commandCenter.nextTrackCommand.enabled = YES;
     commandCenter.previousTrackCommand.enabled = YES;
+    commandCenter.changePlaybackPositionCommand.enabled = YES;
+    commandCenter.skipForwardCommand.enabled = YES;
+    commandCenter.skipBackwardCommand.enabled = YES;
+
+    commandCenter.skipForwardCommand.preferredIntervals = @[@(15.0)];
+    commandCenter.skipBackwardCommand.preferredIntervals = @[@(15.0)];
 
     [commandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-        [self clickPlayPauseButton:nil];
+        if (self->showPlayButton) {
+            [self clickPlayPauseButton:nil];
+        }
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
     [commandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-        [self clickPlayPauseButton:nil];
+        if (!self->showPlayButton) {
+            [self clickPlayPauseButton:nil];
+        }
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
@@ -635,17 +646,70 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
+    [commandCenter.changePlaybackPositionCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+        if ([event isKindOfClass:[MPChangePlaybackPositionCommandEvent class]]) {
+            MPChangePlaybackPositionCommandEvent *posEvent = (MPChangePlaybackPositionCommandEvent *)event;
+            [self seekToSeconds:(NSInteger)posEvent.positionTime];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }
+        return MPRemoteCommandHandlerStatusCommandFailed;
+    }];
+
+    [commandCenter.skipForwardCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+        NSTimeInterval interval = 15.0;
+        if ([event isKindOfClass:[MPSkipIntervalCommandEvent class]]) {
+            MPSkipIntervalCommandEvent *skipEvent = (MPSkipIntervalCommandEvent *)event;
+            if (skipEvent.interval > 0.0) {
+                interval = skipEvent.interval;
+            }
+        }
+        NSInteger currentSec = (self->player != NULL) ? (NSInteger)[self->player getPlaybackSeconds] : 0;
+        [self seekToSeconds:currentSec + (NSInteger)interval];
+        return MPRemoteCommandHandlerStatusSuccess;
+    }];
+
+    [commandCenter.skipBackwardCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+        NSTimeInterval interval = 15.0;
+        if ([event isKindOfClass:[MPSkipIntervalCommandEvent class]]) {
+            MPSkipIntervalCommandEvent *skipEvent = (MPSkipIntervalCommandEvent *)event;
+            if (skipEvent.interval > 0.0) {
+                interval = skipEvent.interval;
+            }
+        }
+        NSInteger currentSec = (self->player != NULL) ? (NSInteger)[self->player getPlaybackSeconds] : 0;
+        [self seekToSeconds:MAX((NSInteger)0, currentSec - (NSInteger)interval)];
+        return MPRemoteCommandHandlerStatusSuccess;
+    }];
+
     [commandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-        [self nextSubtune:nil];
+        if (self->player == NULL) return MPRemoteCommandHandlerStatusCommandFailed;
+        int subtuneCount = [self->player getSubtuneCount];
+        int currentSubtune = [self->player getCurrentSubtune];
+        if (subtuneCount > 1 && currentSubtune < subtuneCount) {
+            [self nextSubtune:nil];
+        } else {
+            [self->browserDataSource playNextPlaylistItem:nil];
+        }
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
     [commandCenter.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-        [self previousSubtune:nil];
+        if (self->player == NULL) return MPRemoteCommandHandlerStatusCommandFailed;
+        NSInteger currentSec = (NSInteger)[self->player getPlaybackSeconds];
+        if (currentSec > 3) {
+            [self seekToSeconds:0];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }
+        int currentSubtune = [self->player getCurrentSubtune];
+        if (currentSubtune > 1) {
+            [self previousSubtune:nil];
+        } else {
+            [self->browserDataSource playPreviousPlaylistItem:nil];
+        }
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
-    // To register in Now Playing, we have to set to 'Playing' once – but we're actually stopped.
+    // To register in Now Playing, we have to set to 'Playing' once – but we're actually stopped.
     [MPNowPlayingInfoCenter defaultCenter].playbackState = MPNowPlayingPlaybackStatePlaying;
     [MPNowPlayingInfoCenter defaultCenter].playbackState = MPNowPlayingPlaybackStateStopped;
 }
@@ -789,6 +853,14 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         showPlayButton = true;
         [[SPMenuBarPlayerController sharedController] updatePlaybackState:NO];
     }
+    
+    // Sync playback rate in Now Playing Info
+    NSMutableDictionary *rateInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+    if (rateInfo) {
+        rateInfo[MPNowPlayingInfoPropertyPlaybackRate] = @(pause ? 1.0f : 0.0f);
+        rateInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @((player != NULL) ? [player getPlaybackSeconds] : 0);
+        [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = rateInfo;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -902,11 +974,15 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [sidPopup setNeedsDisplay:TRUE];
     [sidPopup.superview displayIfNeeded];
     
-    // update elapsed time for media controls
-    NSMutableDictionary *nowPlayingInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
-    if (nowPlayingInfo) {
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(seconds);
-        [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+    // update elapsed time for media controls (throttled to second increments)
+    static NSInteger sLastNowPlayingSec = -1;
+    if (sLastNowPlayingSec != seconds) {
+        sLastNowPlayingSec = seconds;
+        NSMutableDictionary *nowPlayingInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+        if (nowPlayingInfo) {
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(seconds);
+            [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+        }
     }
     
     if (player != NULL && [NSRunLoop currentRunLoop].currentMode != NSEventTrackingRunLoopMode)
@@ -1214,10 +1290,40 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     
     // update Now Playing Info for media controls
     NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary dictionary];
-    nowPlayingInfo[MPMediaItemPropertyTitle] = title;
-    nowPlayingInfo[MPMediaItemPropertyArtist] = author;
+    nowPlayingInfo[MPMediaItemPropertyTitle] = (title.length > 0) ? title : @"Untitled";
+    nowPlayingInfo[MPMediaItemPropertyArtist] = (author.length > 0) ? author : @"Unknown Artist";
+    
+    NSString *albumTitle = @"";
+    BOOL isModTune = [player isCurrentTuneMod];
+    if (isModTune) {
+        const char *format = [player getCurrentFormat];
+        NSString *formatStr = (format && strlen(format) > 0) ? [NSString stringWithUTF8String:format] : @"Amiga Tracker Module";
+        albumTitle = [NSString stringWithFormat:@"Amiga Module (%@)", formatStr];
+    } else {
+        albumTitle = (releaseInfo.length > 0) ? releaseInfo : @"Commodore 64 SID";
+    }
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = albumTitle;
     nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = @(currentTuneLengthInSeconds);
     nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @([player getPlaybackSeconds]);
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = @(showPlayButton ? 0.0f : 1.0f);
+    nowPlayingInfo[MPMediaItemPropertyAlbumTrackNumber] = @(currentSubtune);
+    nowPlayingInfo[MPMediaItemPropertyAlbumTrackCount] = @(subtuneCount);
+    
+    // Procedural Retro Album Artwork
+    NSString *safeTitle = [title copy];
+    NSString *safeAuthor = [author copy];
+    NSString *safeChip = [chipName copy];
+    MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:CGSizeMake(600, 600) requestHandler:^NSImage * _Nonnull(CGSize size) {
+        return [SPNowPlayingArtworkGenerator artworkForTitle:safeTitle
+                                                      artist:safeAuthor
+                                                       isMod:isModTune
+                                                   chipModel:safeChip
+                                                     subtune:currentSubtune
+                                                subtuneCount:subtuneCount
+                                                        size:size];
+    }];
+    nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork;
+    
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 #pragma mark Audio Driver helper functions
@@ -2458,6 +2564,12 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     
     [player seekToSeconds:(int)seconds];
     [self updateTimer];
+    
+    NSMutableDictionary *seekInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+    if (seekInfo) {
+        seekInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(seconds);
+        [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = seekInfo;
+    }
 }
 
 // ----------------------------------------------------------------------------
