@@ -143,6 +143,12 @@
 		DAA000712E696C90001433DC /* SPToggleSwitchControl.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000732E696C90001433DC /* SPToggleSwitchControl.h */; };
 		DAA000802E696C90001433DC /* SPNixieDisplayView.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000822E696C90001433DC /* SPNixieDisplayView.m */; };
 		DAA000812E696C90001433DC /* SPNixieDisplayView.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000832E696C90001433DC /* SPNixieDisplayView.h */; };
+		DAA000902E696C90001433DC /* SPCircularVectorScopeView.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000922E696C90001433DC /* SPCircularVectorScopeView.m */; };
+		DAA000912E696C90001433DC /* SPCircularVectorScopeView.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000932E696C90001433DC /* SPCircularVectorScopeView.h */; };
+		DAA000A02E696C90001433DC /* SPCyberChassisDeckView.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000A22E696C90001433DC /* SPCyberChassisDeckView.m */; };
+		DAA000A12E696C90001433DC /* SPCyberChassisDeckView.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000A32E696C90001433DC /* SPCyberChassisDeckView.h */; };
+		DAA000B02E696C90001433DC /* SPCyberChassisWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = DAA000B22E696C90001433DC /* SPCyberChassisWindowController.m */; };
+		DAA000B12E696C90001433DC /* SPCyberChassisWindowController.h in Headers */ = {isa = PBXBuildFile; fileRef = DAA000B32E696C90001433DC /* SPCyberChassisWindowController.h */; };
 		DA17E52A2A04F6C800419CB8 /* residfp-builder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A82A04F36000419CB8 /* residfp-builder.cpp */; };
 		DA17E52B2A04F6C800419CB8 /* residfp-emu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3A72A04F36000419CB8 /* residfp-emu.cpp */; };
 		DA17E52C2A04F6D500419CB8 /* OpAmp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA17E3AB2A04F36000419CB8 /* OpAmp.cpp */; };
@@ -518,6 +524,12 @@
 		DAA000732E696C90001433DC /* SPToggleSwitchControl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPToggleSwitchControl.h; sourceTree = "<group>"; };
 		DAA000822E696C90001433DC /* SPNixieDisplayView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPNixieDisplayView.m; sourceTree = "<group>"; };
 		DAA000832E696C90001433DC /* SPNixieDisplayView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPNixieDisplayView.h; sourceTree = "<group>"; };
+		DAA000922E696C90001433DC /* SPCircularVectorScopeView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPCircularVectorScopeView.m; sourceTree = "<group>"; };
+		DAA000932E696C90001433DC /* SPCircularVectorScopeView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPCircularVectorScopeView.h; sourceTree = "<group>"; };
+		DAA000A22E696C90001433DC /* SPCyberChassisDeckView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPCyberChassisDeckView.m; sourceTree = "<group>"; };
+		DAA000A32E696C90001433DC /* SPCyberChassisDeckView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPCyberChassisDeckView.h; sourceTree = "<group>"; };
+		DAA000B22E696C90001433DC /* SPCyberChassisWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SPCyberChassisWindowController.m; sourceTree = "<group>"; };
+		DAA000B32E696C90001433DC /* SPCyberChassisWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SPCyberChassisWindowController.h; sourceTree = "<group>"; };
 		DA17E2EB2A04F36000419CB8 /* lightpen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lightpen.h; sourceTree = "<group>"; };
 		DA17E2EC2A04F36000419CB8 /* mos656x.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mos656x.h; sourceTree = "<group>"; };
 		DA17E2ED2A04F36000419CB8 /* mos656x.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mos656x.cpp; sourceTree = "<group>"; };
@@ -1043,6 +1055,12 @@
 				DAA000732E696C90001433DC /* SPToggleSwitchControl.h */,
 				DAA000822E696C90001433DC /* SPNixieDisplayView.m */,
 				DAA000832E696C90001433DC /* SPNixieDisplayView.h */,
+				DAA000922E696C90001433DC /* SPCircularVectorScopeView.m */,
+				DAA000932E696C90001433DC /* SPCircularVectorScopeView.h */,
+				DAA000A22E696C90001433DC /* SPCyberChassisDeckView.m */,
+				DAA000A32E696C90001433DC /* SPCyberChassisDeckView.h */,
+				DAA000B22E696C90001433DC /* SPCyberChassisWindowController.m */,
+				DAA000B32E696C90001433DC /* SPCyberChassisWindowController.h */,
 				DA529CBC2F9C162D00FD8AC7 /* PlayerUsbWorker.m */,
 				DA529CC32F9E250400FD8AC7 /* USBDeviceWatcher.m */,
 				DA529CC72F9E250C00FD8AC7 /* USBDeviceWatcher.h */,
@@ -1996,6 +2014,9 @@
 				DAA000602E696C90001433DC /* SPKnurledKnobControl.m in Sources */,
 				DAA000702E696C90001433DC /* SPToggleSwitchControl.m in Sources */,
 				DAA000802E696C90001433DC /* SPNixieDisplayView.m in Sources */,
+				DAA000902E696C90001433DC /* SPCircularVectorScopeView.m in Sources */,
+				DAA000A02E696C90001433DC /* SPCyberChassisDeckView.m in Sources */,
+				DAA000B02E696C90001433DC /* SPCyberChassisWindowController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
