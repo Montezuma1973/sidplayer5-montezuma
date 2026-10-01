@@ -62,6 +62,15 @@
 	BOOL isModTune;
 	NSRect chipBadgeFrame;
 	BOOL mouseDownInChipBadge;
+
+	NSRect scrubBarFrame;
+	NSRect loopBadgeFrame;
+	BOOL isHoveringScrubBar;
+	CGFloat hoverScrubPositionX;
+	NSInteger hoverScrubSeconds;
+	BOOL isDraggingScrub;
+	NSInteger currentSubtuneCount;
+	NSTrackingArea* scrubTrackingArea;
 }
 
 - (void) loadResources;

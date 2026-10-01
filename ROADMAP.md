@@ -78,9 +78,11 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
   - [x] Dynamic theme adaptation: transparent vibrancy for Modern macOS System theme; automatic clean disable/fallback for retro solid themes (C64, Workbench 1.3, Workbench 3.1).
   - [x] Translucent visualizer container framing with 1px hairline glass separators and subtle shine highlights, seamlessly blending Spectrum, Tracker Matrix, and Piano Roll modes over the frosted glass backdrop.
 
-- [ ] **3.2 Enhanced Timeline Scrub Bar**
-  - [ ] Precise time scrub bar with elapsed and remaining time tooltips on hover.
-  - [ ] Subtune section markers and looping controls.
+- [x] **3.2 Enhanced Timeline Scrub Bar**
+  - [x] Precise interactive timeline scrub bar in the playback status view with real-time seeking across both SID (`libsidplayfp`) and tracker modules (`libxmp`).
+  - [x] Hover scrubbing cursor with dynamic tooltip showing elapsed and remaining time (`00:00 (-00:00)`), vertical guide line, and glowing playhead thumb.
+  - [x] Subtune section markers placed along the timeline track for multi-song tunes.
+  - [x] Integrated Loop Mode button badge toggling between Off (`➡️ OFF`), Single Subtune (`🔁 1`), and All Tracks (`🔁 ALL`) with retro HUD notifications.
 
 ---
 

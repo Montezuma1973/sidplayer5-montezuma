@@ -276,6 +276,15 @@ static NSString * const kCRTProfilePrefKey = @"SPVisualizerCRTProfile";
 }
 
 // ----------------------------------------------------------------------------
+- (void)showNotification:(NSString *)message
+// ----------------------------------------------------------------------------
+{
+    _hudText = [message copy];
+    _hudDisplayUntil = [NSDate timeIntervalSinceReferenceDate] + 2.4;
+    [self setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
 - (void)mouseDown:(NSEvent *)event
 // ----------------------------------------------------------------------------
 {

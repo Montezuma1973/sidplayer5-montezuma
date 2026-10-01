@@ -247,6 +247,12 @@ extern NSString* SPUrlRequestUserAgentString;
 - (void) setupSidebarVisualEffectView;
 @property (NS_NONATOMIC_IOSONLY, readonly) SPAppTheme currentTheme;
 
+// Timeline & Looping
+- (void) seekToSeconds:(NSInteger)seconds;
+- (void) toggleLoopMode;
+- (BOOL) isRepeatSingleActive;
+- (BOOL) isRepeatAllActive;
+
 // Channel Matrix & Voice Solo/Mute
 - (int) activeChannelCount;
 - (BOOL) isVoiceMuted:(int)voice;
