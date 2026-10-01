@@ -21,6 +21,7 @@
 #import "SPFloatingWidgetController.h"
 #import "SPAudioProcessor.h"
 #import "SPNowPlayingArtworkGenerator.h"
+#import "SPCyberChassisWindowController.h"
 
 #import "PlayerLibSidplayWrapper.h"
 
@@ -2282,6 +2283,12 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             widgetItem.target = self;
             widgetItem.tag = 7772;
             [viewMenu addItem:widgetItem];
+            
+            NSMenuItem *deckItem = [[NSMenuItem alloc] initWithTitle:@"Show Cyber-Chassis Deck" action:@selector(toggleCyberChassisDeck:) keyEquivalent:@"c"];
+            deckItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+            deckItem.target = self;
+            deckItem.tag = 7773;
+            [viewMenu addItem:deckItem];
         }
     }
     [self updateThemeMenuChecks];
@@ -2318,6 +2325,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         }
         
         [[SPFloatingWidgetController sharedController] updateViewMenuChecks];
+        
+        NSMenuItem *deckItem = [viewMenuItem.submenu itemWithTag:7773];
+        if (deckItem) {
+            deckItem.state = [[SPCyberChassisWindowController sharedController] isDeckWindowVisible] ? NSControlStateValueOn : NSControlStateValueOff;
+        }
     }
 }
 
@@ -2667,6 +2679,14 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 }
 
 // ----------------------------------------------------------------------------
+- (IBAction) toggleCyberChassisDeck:(id)sender
+// ----------------------------------------------------------------------------
+{
+    [[SPCyberChassisWindowController sharedController] toggleDeckWindow:sender];
+    [self updateThemeMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
 - (IBAction) selectThemeFromMenu:(id)sender
 // ----------------------------------------------------------------------------
 {
@@ -2957,6 +2977,7 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         
     [[SPMenuBarPlayerController sharedController] setupWithPlayerWindow:self];
     [[SPFloatingWidgetController sharedController] setupWithPlayerWindow:self spectrumView:spectrumView];
+    [[SPCyberChassisWindowController sharedController] setupWithPlayerWindow:self];
 }
 
 // ----------------------------------------------------------------------------

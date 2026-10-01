@@ -259,6 +259,7 @@ extern NSString* SPUrlRequestUserAgentString;
 - (void) setPlaybackVolume:(float)volume;
 - (IBAction) toggleMenuBarMiniPlayer:(id)sender;
 - (IBAction) toggleFloatingVisualizerWidget:(id)sender;
+- (IBAction) toggleCyberChassisDeck:(id)sender;
 
 // Channel Matrix & Voice Solo/Mute
 - (int) activeChannelCount;
