@@ -115,9 +115,20 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
   - [x] Stereo widening / Haas spatializer for mono SID and authentic dual-SID chip panning.
   - [x] Audio menu, Menu Bar Mini-Player submenu, and Visualizer context menu controls with persistent user settings and animated HUD notifications.
 
-- [ ] **5.2 System Media Keys & macOS Now Playing Integration**
-  - [ ] Dynamic retro album artwork for macOS Now Playing / Control Center / Lock Screen (procedural retro cassette & floppy disk art with track metadata).
-  - [ ] Complete `MPRemoteCommandCenter` integration with hardware media key support, seek progress bar, and subtune navigation.
+- [x] **5.2 System Media Keys & macOS Now Playing Integration**
+  - [x] Procedural high-resolution retro album cover art generator (`SPNowPlayingArtworkGenerator`) for macOS Now Playing, Control Center, and Lock Screen.
+    - Amiga MOD: 3D Checkered Boing Ball with drop shadow, perspective wireframe grid, Paula 8364 silicon badge with amber LED, and dark frosted metadata card.
+    - C64 SID: Authentic Commodore C-60 Datasette audio cassette with 5-color rainbow header, tape window, dual spools, magnetic tape bridge, corner screws, MOS 6581/8580 chip badge with status LED, and VIC-II typography.
+    - Memory-bounded LRU artwork caching (`NSCache`) for instantaneous UI responsiveness.
+  - [x] Complete `MPRemoteCommandCenter` integration with hardware media key support:
+    - Interactive seek & playback position scrubber (`changePlaybackPositionCommand`) mapped to `seekToSeconds:`.
+    - Skip 15s forward (`skipForwardCommand`) and backward (`skipBackwardCommand`).
+    - Smart Next Track (`nextTrackCommand`): advances subtune for multi-song tunes; transitions to next playlist item on final subtune.
+    - Smart Previous Track (`previousTrackCommand`): restarts subtune if elapsed playback > 3s; navigates to previous subtune or playlist track otherwise.
+    - Hardware Play / Pause / Toggle commands (`playCommand`, `pauseCommand`, `togglePlayPauseCommand`).
+  - [x] Rich `MPNowPlayingInfoCenter` metadata synchronization:
+    - Real-time updates for Title, Artist, Album / Format, Track Number & Total Count, Duration, and Elapsed Playback Time.
+    - Synchronized `MPNowPlayingInfoPropertyPlaybackRate` (1.0 playing, 0.0 paused) with 1Hz throttled IPC to ensure clock accuracy.
 
 - [ ] **5.3 Extended Lossless Audio Export**
   - [ ] Lossless audio export (WAV / AIFF / FLAC) with embedded metadata and retro cover art alongside MP3.
