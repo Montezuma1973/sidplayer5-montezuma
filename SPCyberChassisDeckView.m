@@ -45,29 +45,24 @@
     [self setWantsLayer:YES];
     
     // 1. Time Nixie Display (MM:SS)
-    NSRect timeRect = NSMakeRect(24.0f, 218.0f, 172.0f, 72.0f);
-    _timeNixieView = [[SPNixieDisplayView alloc] initWithFrame:timeRect];
+    _timeNixieView = [[SPNixieDisplayView alloc] initWithFrame:NSMakeRect(20, 10, 120, 60)];
     _timeNixieView.showSubtune = NO;
     [_timeNixieView setTimeInSeconds:0];
     [self addSubview:_timeNixieView];
     
     // 2. Subtune Nixie Display (01/01)
-    NSRect subRect = NSMakeRect(204.0f, 218.0f, 120.0f, 72.0f);
-    _subtuneNixieView = [[SPNixieDisplayView alloc] initWithFrame:subRect];
+    _subtuneNixieView = [[SPNixieDisplayView alloc] initWithFrame:NSMakeRect(145, 10, 80, 60)];
     _subtuneNixieView.showSubtune = YES;
     [_subtuneNixieView setSubtune:1 count:1];
     [self addSubview:_subtuneNixieView];
     
     // 3. Circular Phosphor Vector Scope
-    NSRect scopeRect = NSMakeRect(348.0f, 170.0f, 175.0f, 175.0f);
-    _vectorScopeView = [[SPCircularVectorScopeView alloc] initWithFrame:scopeRect];
+    _vectorScopeView = [[SPCircularVectorScopeView alloc] initWithFrame:NSMakeRect(600, 10, 160, 160)];
     _vectorScopeView.scopeMode = SPVectorScopeModeLissajousXY;
     [self addSubview:_vectorScopeView];
     
     // 4. Knurled Rotary Knobs
-    // Volume Knob (0% - 100%)
-    NSRect volRect = NSMakeRect(24.0f, 26.0f, 90.0f, 130.0f);
-    _volumeKnob = [[SPKnurledKnobControl alloc] initWithFrame:volRect
+    _volumeKnob = [[SPKnurledKnobControl alloc] initWithFrame:NSMakeRect(235, 10, 70, 120)
                                                         title:@"VOLUME"
                                                          unit:@"%"
                                                      minValue:0.0f
@@ -78,9 +73,7 @@
     _volumeKnob.action = @selector(volumeKnobChanged:);
     [self addSubview:_volumeKnob];
     
-    // Tempo / Pitch Knob (50% - 200%)
-    NSRect tempoRect = NSMakeRect(122.0f, 26.0f, 90.0f, 130.0f);
-    _tempoKnob = [[SPKnurledKnobControl alloc] initWithFrame:tempoRect
+    _tempoKnob = [[SPKnurledKnobControl alloc] initWithFrame:NSMakeRect(310, 10, 70, 120)
                                                        title:@"TEMPO"
                                                         unit:@"%"
                                                     minValue:50.0f
@@ -91,9 +84,7 @@
     _tempoKnob.action = @selector(tempoKnobChanged:);
     [self addSubview:_tempoKnob];
     
-    // Filter Resonance Knob (0% - 100%)
-    NSRect filterRect = NSMakeRect(220.0f, 26.0f, 90.0f, 130.0f);
-    _filterKnob = [[SPKnurledKnobControl alloc] initWithFrame:filterRect
+    _filterKnob = [[SPKnurledKnobControl alloc] initWithFrame:NSMakeRect(385, 10, 70, 120)
                                                         title:@"RESONANCE"
                                                          unit:@"%"
                                                      minValue:0.0f
@@ -105,9 +96,7 @@
     [self addSubview:_filterKnob];
     
     // 5. Heavy Bat Toggle Switches
-    // Play / Stop Toggle
-    NSRect playRect = NSMakeRect(324.0f, 28.0f, 48.0f, 126.0f);
-    _playPauseToggle = [[SPToggleSwitchControl alloc] initWithFrame:playRect
+    _playPauseToggle = [[SPToggleSwitchControl alloc] initWithFrame:NSMakeRect(465, 10, 42, 115)
                                                              title:@"PLAY"
                                                               isOn:NO
                                                           ledColor:SPToggleLedColorEmerald];
@@ -115,9 +104,7 @@
     _playPauseToggle.action = @selector(playPauseToggled:);
     [self addSubview:_playPauseToggle];
     
-    // Loop Toggle
-    NSRect loopRect = NSMakeRect(378.0f, 28.0f, 48.0f, 126.0f);
-    _loopToggle = [[SPToggleSwitchControl alloc] initWithFrame:loopRect
+    _loopToggle = [[SPToggleSwitchControl alloc] initWithFrame:NSMakeRect(510, 10, 42, 115)
                                                          title:@"LOOP"
                                                           isOn:NO
                                                       ledColor:SPToggleLedColorAmber];
@@ -125,9 +112,7 @@
     _loopToggle.action = @selector(loopToggled:);
     [self addSubview:_loopToggle];
     
-    // Stereo / Dual SID Toggle
-    NSRect stereoRect = NSMakeRect(432.0f, 28.0f, 48.0f, 126.0f);
-    _stereoSidToggle = [[SPToggleSwitchControl alloc] initWithFrame:stereoRect
+    _stereoSidToggle = [[SPToggleSwitchControl alloc] initWithFrame:NSMakeRect(555, 10, 42, 115)
                                                              title:@"DUAL SID"
                                                               isOn:NO
                                                           ledColor:SPToggleLedColorCyan];
@@ -135,15 +120,88 @@
     _stereoSidToggle.action = @selector(stereoSidToggled:);
     [self addSubview:_stereoSidToggle];
     
-    // Vector Scope Mode Toggle
-    NSRect scopeModeRect = NSMakeRect(486.0f, 28.0f, 48.0f, 126.0f);
-    _scopeModeToggle = [[SPToggleSwitchControl alloc] initWithFrame:scopeModeRect
+    _scopeModeToggle = [[SPToggleSwitchControl alloc] initWithFrame:NSMakeRect(600, 10, 42, 115)
                                                              title:@"SCOPE"
                                                               isOn:NO
                                                           ledColor:SPToggleLedColorAmber];
     _scopeModeToggle.target = self;
     _scopeModeToggle.action = @selector(scopeModeToggled:);
     [self addSubview:_scopeModeToggle];
+}
+
+- (void)layout
+{
+    [super layout];
+    
+    CGFloat w = self.bounds.size.width;
+    CGFloat h = self.bounds.size.height;
+    if (w < 100.0f || h < 60.0f) return;
+    
+    if (h <= 260.0f) {
+        // Horizontal Rack-Mount Strip (embedded in player window or wide HUD)
+        CGFloat bottomY = 12.0f;
+        CGFloat ctrlH = h - 24.0f;
+        
+        // 1. Nixie Displays (Left bay)
+        CGFloat nixieH = MIN(75.0f, ctrlH - 36.0f);
+        CGFloat nixieY = bottomY + 2.0f;
+        _timeNixieView.frame = NSMakeRect(20.0f, nixieY, 124.0f, nixieH);
+        _subtuneNixieView.frame = NSMakeRect(148.0f, nixieY, 84.0f, nixieH);
+        
+        // 2. Knurled Knobs
+        CGFloat knobAreaX = 246.0f;
+        CGFloat knobW = 68.0f;
+        CGFloat knobH = MIN(120.0f, ctrlH);
+        CGFloat knobY = bottomY + (ctrlH - knobH) * 0.5f;
+        _volumeKnob.frame = NSMakeRect(knobAreaX, knobY, knobW, knobH);
+        _tempoKnob.frame = NSMakeRect(knobAreaX + knobW + 6.0f, knobY, knobW, knobH);
+        _filterKnob.frame = NSMakeRect(knobAreaX + (knobW + 6.0f) * 2.0f, knobY, knobW, knobH);
+        
+        // 3. Bat Toggle Switches
+        CGFloat toggleAreaX = knobAreaX + (knobW + 6.0f) * 3.0f + 14.0f;
+        CGFloat toggleW = 42.0f;
+        CGFloat toggleH = MIN(116.0f, ctrlH);
+        CGFloat toggleY = bottomY + (ctrlH - toggleH) * 0.5f;
+        _playPauseToggle.frame = NSMakeRect(toggleAreaX, toggleY, toggleW, toggleH);
+        _loopToggle.frame = NSMakeRect(toggleAreaX + toggleW + 4.0f, toggleY, toggleW, toggleH);
+        _stereoSidToggle.frame = NSMakeRect(toggleAreaX + (toggleW + 4.0f) * 2.0f, toggleY, toggleW, toggleH);
+        _scopeModeToggle.frame = NSMakeRect(toggleAreaX + (toggleW + 4.0f) * 3.0f, toggleY, toggleW, toggleH);
+        
+        // 4. Vector Scope (Right bay)
+        CGFloat scopeX = toggleAreaX + (toggleW + 4.0f) * 4.0f + 16.0f;
+        CGFloat maxScopeW = w - scopeX - 20.0f;
+        CGFloat scopeDim = MIN(maxScopeW, ctrlH);
+        if (scopeDim >= 50.0f) {
+            _vectorScopeView.frame = NSMakeRect(scopeX, bottomY + (ctrlH - scopeDim) * 0.5f, scopeDim, scopeDim);
+            _vectorScopeView.hidden = NO;
+        } else {
+            _vectorScopeView.hidden = YES;
+        }
+    } else {
+        // Standard / Compact Two-Row Layout (for dedicated window)
+        CGFloat topRowY = h - 110.0f;
+        _timeNixieView.frame = NSMakeRect(20.0f, topRowY, 160.0f, 68.0f);
+        _subtuneNixieView.frame = NSMakeRect(186.0f, topRowY, 110.0f, 68.0f);
+        
+        CGFloat scopeSize = MIN(w - 320.0f - 24.0f, 150.0f);
+        if (scopeSize > 50.0f) {
+            _vectorScopeView.frame = NSMakeRect(w - scopeSize - 20.0f, h - scopeSize - 20.0f, scopeSize, scopeSize);
+            _vectorScopeView.hidden = NO;
+        } else {
+            _vectorScopeView.hidden = YES;
+        }
+        
+        CGFloat botH = MIN(126.0f, topRowY - 24.0f);
+        _volumeKnob.frame = NSMakeRect(20.0f, 16.0f, 78.0f, botH);
+        _tempoKnob.frame = NSMakeRect(104.0f, 16.0f, 78.0f, botH);
+        _filterKnob.frame = NSMakeRect(188.0f, 16.0f, 78.0f, botH);
+        
+        CGFloat togX = 276.0f;
+        _playPauseToggle.frame = NSMakeRect(togX, 18.0f, 44.0f, botH);
+        _loopToggle.frame = NSMakeRect(togX + 48.0f, 18.0f, 44.0f, botH);
+        _stereoSidToggle.frame = NSMakeRect(togX + 96.0f, 18.0f, 44.0f, botH);
+        _scopeModeToggle.frame = NSMakeRect(togX + 144.0f, 18.0f, 44.0f, botH);
+    }
 }
 
 - (void)setPlayerWindow:(SPPlayerWindow *)playerWindow
@@ -173,7 +231,7 @@
 
 - (void)filterKnobChanged:(id)sender
 {
-    // Feedback or custom resonance modulation
+    // Filter resonance / modulation
 }
 
 - (void)playPauseToggled:(id)sender
@@ -192,7 +250,7 @@
 
 - (void)stereoSidToggled:(id)sender
 {
-    // Dual SID / Stereo mode toggle
+    // Dual SID toggle
 }
 
 - (void)scopeModeToggled:(id)sender
@@ -209,58 +267,52 @@
     PlayerLibSidplayWrapper *player = _playerWindow.player;
     BOOL isPlaying = [_playerWindow isAudioPlaying];
     
-    // 1. Sync Play/Pause Toggle
     if (_playPauseToggle.isOn != isPlaying) {
         _playPauseToggle.isOn = isPlaying;
     }
     
-    // 2. Sync Loop Toggle
     BOOL isLoop = [_playerWindow isRepeatSingleActive];
     if (_loopToggle.isOn != isLoop) {
         _loopToggle.isOn = isLoop;
     }
     
-    // 3. Sync Volume Knob
     float curVol = [_playerWindow playbackVolume] * 100.0f;
     if (fabs(_volumeKnob.knobValue - curVol) > 1.0f) {
         _volumeKnob.knobValue = curVol;
     }
     
-    // 4. Sync Nixie Time
     int seconds = (player != NULL) ? [player getPlaybackSeconds] : 0;
     [_timeNixieView setTimeInSeconds:seconds];
     
-    // 5. Sync Nixie Subtune
     int curSub = (player != NULL) ? [player getCurrentSubtune] : 1;
     int totalSubs = (player != NULL) ? [player getSubtuneCount] : 1;
     if (totalSubs < 1) totalSubs = 1;
     if (curSub < 1) curSub = 1;
     [_subtuneNixieView setSubtune:curSub count:totalSubs];
     
-    // 6. Sync Dual SID state
     if (player != NULL) {
         BOOL isDual = ([player getSidChips] > 1);
         if (_stereoSidToggle.isOn != isDual) {
             _stereoSidToggle.isOn = isDual;
         }
     }
+    
+    [self setNeedsDisplay:YES];
 }
 
 #pragma mark - Drawing
 
 - (void)drawHexScrewAtPoint:(CGPoint)center inContext:(CGContextRef)ctx
 {
-    CGFloat outerR = 6.5f;
+    CGFloat outerR = 6.0f;
     NSRect outerRect = NSMakeRect(center.x - outerR, center.y - outerR, outerR * 2.0f, outerR * 2.0f);
     
-    // Outer washer bevel
     NSColor *wTop = [NSColor colorWithCalibratedRed:0.42f green:0.45f blue:0.52f alpha:1.0f];
     NSColor *wBot = [NSColor colorWithCalibratedRed:0.14f green:0.15f blue:0.18f alpha:1.0f];
     NSGradient *wGrad = [[NSGradient alloc] initWithStartingColor:wTop endingColor:wBot];
     [wGrad drawInBezierPath:[NSBezierPath bezierPathWithOvalInRect:outerRect] angle:-45.0f];
     
-    // Hexagonal socket cavity
-    CGFloat hexR = 3.5f;
+    CGFloat hexR = 3.2f;
     NSBezierPath *hex = [NSBezierPath bezierPath];
     for (int i = 0; i < 6; i++) {
         CGFloat rad = (CGFloat)i * (M_PI / 3.0f);
@@ -290,7 +342,7 @@
     
     // 1. Brushed Gunmetal Chassis Plate (Deep dark metallic base)
     NSColor *plateTop = [NSColor colorWithCalibratedRed:0.16f green:0.18f blue:0.22f alpha:1.0f];
-    NSColor *plateBot = [NSColor colorWithCalibratedRed:0.09f green:0.10f blue:0.12f alpha:1.0f];
+    NSColor *plateBot = [NSColor colorWithCalibratedRed:0.08f green:0.09f blue:0.11f alpha:1.0f];
     NSGradient *plateGrad = [[NSGradient alloc] initWithStartingColor:plateTop endingColor:plateBot];
     [plateGrad drawInRect:bounds angle:-90.0f];
     
@@ -303,82 +355,71 @@
     
     // 2. Beveled Metallic Chassis Perimeter Border
     [[NSColor colorWithCalibratedRed:0.35f green:0.38f blue:0.46f alpha:0.85f] setStroke];
-    NSBezierPath *border = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(bounds, 2.0f, 2.0f) xRadius:6.0f yRadius:6.0f];
+    NSBezierPath *border = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(bounds, 1.5f, 1.5f) xRadius:5.0f yRadius:5.0f];
     border.lineWidth = 2.0f;
     [border stroke];
     
-    // Outer drop shadow
-    [[NSColor colorWithCalibratedWhite:0.0f alpha:0.9f] setStroke];
-    NSBezierPath *innerShadow = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(bounds, 4.0f, 4.0f) xRadius:4.0f yRadius:4.0f];
-    innerShadow.lineWidth = 1.0f;
-    [innerShadow stroke];
-    
     // 3. Recessed Control Bays
-    // Bay 1: Nixie Bay (Top Left)
-    NSRect bay1 = NSMakeRect(16.0f, 206.0f, 316.0f, 92.0f);
-    [[NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:0.95f] setFill];
-    NSBezierPath *b1Path = [NSBezierPath bezierPathWithRoundedRect:bay1 xRadius:4.0f yRadius:4.0f];
-    [b1Path fill];
-    [[NSColor colorWithCalibratedRed:0.25f green:0.28f blue:0.34f alpha:0.6f] setStroke];
-    b1Path.lineWidth = 1.0f;
-    [b1Path stroke];
+    // Bay 1: Nixies
+    if (!_timeNixieView.isHidden) {
+        NSRect bay1 = NSMakeRect(14.0f, 8.0f, 222.0f, h - 16.0f);
+        [[NSColor colorWithCalibratedRed:0.05f green:0.06f blue:0.08f alpha:0.92f] setFill];
+        NSBezierPath *b1Path = [NSBezierPath bezierPathWithRoundedRect:bay1 xRadius:4.0f yRadius:4.0f];
+        [b1Path fill];
+        [[NSColor colorWithCalibratedRed:0.25f green:0.28f blue:0.34f alpha:0.55f] setStroke];
+        b1Path.lineWidth = 1.0f;
+        [b1Path stroke];
+        
+        // Brand Placard Header in Bay 1
+        NSRect placardRect = NSMakeRect(bay1.origin.x + 6.0f, bay1.origin.y + bay1.size.height - 28.0f, bay1.size.width - 12.0f, 22.0f);
+        [[NSColor colorWithCalibratedRed:0.10f green:0.12f blue:0.15f alpha:0.85f] setFill];
+        [[NSBezierPath bezierPathWithRoundedRect:placardRect xRadius:2.0f yRadius:2.0f] fill];
+        
+        NSString *headerTitle = @"COMMODORE 64 // DECK";
+        NSDictionary *headAttr = @{
+            NSFontAttributeName: [NSFont monospacedSystemFontOfSize:9.5f weight:NSFontWeightHeavy],
+            NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.85f green:0.88f blue:0.95f alpha:0.9f]
+        };
+        [headerTitle drawAtPoint:NSMakePoint(placardRect.origin.x + 6.0f, placardRect.origin.y + 5.0f) withAttributes:headAttr];
+        
+        // Power/Audio LED dot
+        BOOL isPlaying = (_playerWindow != nil) && [_playerWindow isAudioPlaying];
+        NSColor *ledColor = isPlaying ? [NSColor colorWithCalibratedRed:0.2f green:1.0f blue:0.4f alpha:1.0f] : [NSColor colorWithCalibratedRed:0.9f green:0.3f blue:0.2f alpha:0.8f];
+        [ledColor setFill];
+        [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(placardRect.origin.x + placardRect.size.width - 16.0f, placardRect.origin.y + 6.0f, 8.0f, 8.0f)] fill];
+    }
     
-    // Bay 2: Rotary Knobs Bay (Bottom Left)
-    NSRect bay2 = NSMakeRect(16.0f, 16.0f, 300.0f, 178.0f);
-    [[NSColor colorWithCalibratedRed:0.06f green:0.07f blue:0.09f alpha:0.85f] setFill];
-    NSBezierPath *b2Path = [NSBezierPath bezierPathWithRoundedRect:bay2 xRadius:4.0f yRadius:4.0f];
-    [b2Path fill];
-    [[NSColor colorWithCalibratedRed:0.24f green:0.27f blue:0.32f alpha:0.5f] setStroke];
-    b2Path.lineWidth = 1.0f;
-    [b2Path stroke];
+    // Bay 2: Knobs Bay
+    if (!_volumeKnob.isHidden) {
+        CGFloat kBayX = _volumeKnob.frame.origin.x - 6.0f;
+        CGFloat kBayW = (_filterKnob.frame.origin.x + _filterKnob.frame.size.width) - kBayX + 6.0f;
+        NSRect bay2 = NSMakeRect(kBayX, 8.0f, kBayW, h - 16.0f);
+        [[NSColor colorWithCalibratedRed:0.06f green:0.07f blue:0.09f alpha:0.85f] setFill];
+        NSBezierPath *b2Path = [NSBezierPath bezierPathWithRoundedRect:bay2 xRadius:4.0f yRadius:4.0f];
+        [b2Path fill];
+        [[NSColor colorWithCalibratedRed:0.24f green:0.27f blue:0.32f alpha:0.5f] setStroke];
+        b2Path.lineWidth = 1.0f;
+        [b2Path stroke];
+    }
     
-    // Bay 3: Toggle Switches Bay (Bottom Right)
-    NSRect bay3 = NSMakeRect(320.0f, 16.0f, 218.0f, 146.0f);
-    [[NSColor colorWithCalibratedRed:0.06f green:0.07f blue:0.09f alpha:0.85f] setFill];
-    NSBezierPath *b3Path = [NSBezierPath bezierPathWithRoundedRect:bay3 xRadius:4.0f yRadius:4.0f];
-    [b3Path fill];
-    [[NSColor colorWithCalibratedRed:0.24f green:0.27f blue:0.32f alpha:0.5f] setStroke];
-    b3Path.lineWidth = 1.0f;
-    [b3Path stroke];
+    // Bay 3: Toggles Bay
+    if (!_playPauseToggle.isHidden) {
+        CGFloat tBayX = _playPauseToggle.frame.origin.x - 6.0f;
+        CGFloat tBayW = (_scopeModeToggle.frame.origin.x + _scopeModeToggle.frame.size.width) - tBayX + 6.0f;
+        NSRect bay3 = NSMakeRect(tBayX, 8.0f, tBayW, h - 16.0f);
+        [[NSColor colorWithCalibratedRed:0.06f green:0.07f blue:0.09f alpha:0.85f] setFill];
+        NSBezierPath *b3Path = [NSBezierPath bezierPathWithRoundedRect:bay3 xRadius:4.0f yRadius:4.0f];
+        [b3Path fill];
+        [[NSColor colorWithCalibratedRed:0.24f green:0.27f blue:0.32f alpha:0.5f] setStroke];
+        b3Path.lineWidth = 1.0f;
+        [b3Path stroke];
+    }
     
-    // 4. Laser Etched Brand Placard / Header Badge
-    NSRect placardRect = NSMakeRect(18.0f, h - 44.0f, 312.0f, 32.0f);
-    NSBezierPath *placard = [NSBezierPath bezierPathWithRoundedRect:placardRect xRadius:3.0f yRadius:3.0f];
-    [[NSColor colorWithCalibratedRed:0.10f green:0.11f blue:0.14f alpha:0.9f] setFill];
-    [placard fill];
-    [[NSColor colorWithCalibratedRed:0.30f green:0.34f blue:0.40f alpha:0.6f] setStroke];
-    placard.lineWidth = 0.8f;
-    [placard stroke];
-    
-    NSString *headerTitle = @"COMMODORE 64 // CYBER-CHASSIS DECK";
-    NSDictionary *headAttr = @{
-        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:11.0f weight:NSFontWeightHeavy],
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.85f green:0.88f blue:0.95f alpha:0.9f]
-    };
-    [headerTitle drawAtPoint:NSMakePoint(placardRect.origin.x + 8.0f, placardRect.origin.y + 15.0f) withAttributes:headAttr];
-    
-    NSString *headerSub = @"HARDWARE SYNTHESIZER / RADAR PHOSPHOR SCOPE";
-    NSDictionary *subAttr = @{
-        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:7.5f weight:NSFontWeightMedium],
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.55f green:0.60f blue:0.70f alpha:0.8f]
-    };
-    [headerSub drawAtPoint:NSMakePoint(placardRect.origin.x + 8.0f, placardRect.origin.y + 4.0f) withAttributes:subAttr];
-    
-    // Status LEDs on Placard
-    CGFloat pwrLedX = placardRect.origin.x + placardRect.size.width - 24.0f;
-    CGFloat pwrLedY = placardRect.origin.y + 12.0f;
-    NSRect pwrDot = NSMakeRect(pwrLedX, pwrLedY, 8.0f, 8.0f);
-    
-    BOOL isPlaying = (_playerWindow != nil) && [_playerWindow isAudioPlaying];
-    NSColor *ledColor = isPlaying ? [NSColor colorWithCalibratedRed:0.2f green:1.0f blue:0.4f alpha:1.0f] : [NSColor colorWithCalibratedRed:0.9f green:0.3f blue:0.2f alpha:0.8f];
-    [ledColor setFill];
-    [[NSBezierPath bezierPathWithOvalInRect:pwrDot] fill];
-    
-    // 5. Four Corner Hex Socket Cap Screws
-    [self drawHexScrewAtPoint:CGPointMake(12.0f, 12.0f) inContext:ctx];
-    [self drawHexScrewAtPoint:CGPointMake(w - 12.0f, 12.0f) inContext:ctx];
-    [self drawHexScrewAtPoint:CGPointMake(12.0f, h - 12.0f) inContext:ctx];
-    [self drawHexScrewAtPoint:CGPointMake(w - 12.0f, h - 12.0f) inContext:ctx];
+    // 4. Four Corner Hex Socket Cap Screws
+    [self drawHexScrewAtPoint:CGPointMake(9.0f, 9.0f) inContext:ctx];
+    [self drawHexScrewAtPoint:CGPointMake(w - 9.0f, 9.0f) inContext:ctx];
+    [self drawHexScrewAtPoint:CGPointMake(9.0f, h - 9.0f) inContext:ctx];
+    [self drawHexScrewAtPoint:CGPointMake(w - 9.0f, h - 9.0f) inContext:ctx];
 }
 
 @end
