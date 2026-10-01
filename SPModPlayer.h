@@ -37,6 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (int) getPlaybackSeconds;
 - (int) getTotalTimeSeconds;
+- (void) seekToSeconds:(int)seconds;
 - (int) getSubtuneCount;
 - (int) getCurrentSubtune;
 - (BOOL) startSubtune:(int)which;

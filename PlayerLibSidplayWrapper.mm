@@ -1120,6 +1120,41 @@ static inline float approximate_dac(int x, float kinkiness)
     return 0;
 }
 
+- (void) seekToSeconds:(int)targetSeconds
+{
+    if (mIsModActive && mModPlayer) {
+        [mModPlayer seekToSeconds:targetSeconds];
+        return;
+    }
+    
+    if (mSidEmuEngine == NULL || mSidTune == NULL)
+        return;
+    
+    if (targetSeconds <= 0) {
+        [self initCurrentSubtune];
+        return;
+    }
+    
+    int currentSecs = (int)mSidEmuEngine->time();
+    if (targetSeconds < currentSecs) {
+        [self initCurrentSubtune];
+        currentSecs = 0;
+    }
+    
+    unsigned int sampleRate = mPlaybackSettings.mFrequency > 0 ? mPlaybackSettings.mFrequency : 44100;
+    int secsToAdvance = targetSeconds - currentSecs;
+    if (secsToAdvance > 0) {
+        short discardBuffer[4096];
+        int totalSamplesToRun = secsToAdvance * sampleRate;
+        while (totalSamplesToRun > 0) {
+            int chunk = MIN(totalSamplesToRun, 4096);
+            mSidEmuEngine->play(discardBuffer, chunk);
+            totalSamplesToRun -= chunk;
+            if ((int)mSidEmuEngine->time() >= targetSeconds) break;
+        }
+    }
+}
+
 - (void) fillBufferUSB
 {
     // USB devices do not fill buffer, but need to be triggerd

@@ -43,5 +43,6 @@ typedef NS_ENUM(NSInteger, SPCRTDisplayProfile) {
 - (void)cycleVisualizerMode;
 - (void)toggleCRTEffect;
 - (void)cycleCRTProfile;
+- (void)showNotification:(NSString *)message;
 
 @end

@@ -2250,6 +2250,63 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 }
 
 // ----------------------------------------------------------------------------
+- (void) seekToSeconds:(NSInteger)seconds
+// ----------------------------------------------------------------------------
+{
+    if (player == NULL) return;
+    if (seconds < 0) seconds = 0;
+    if (currentTuneLengthInSeconds > 0 && seconds > currentTuneLengthInSeconds) {
+        seconds = currentTuneLengthInSeconds;
+    }
+    
+    [player seekToSeconds:(int)seconds];
+    [self updateTimer];
+}
+
+// ----------------------------------------------------------------------------
+- (void) toggleLoopMode
+// ----------------------------------------------------------------------------
+{
+    // Mode sequence: Normal (Off) -> Repeat Single Subtune -> Repeat All Subtunes -> Normal (Off)
+    if (!gPreferences.mRepeatSingleActive && !gPreferences.mRepeatActive) {
+        gPreferences.mRepeatSingleActive = YES;
+        gPreferences.mRepeatActive = NO;
+        if (spectrumView) {
+            [spectrumView showNotification:@"Loop: Single Subtune 🔁1"];
+        }
+    } else if (gPreferences.mRepeatSingleActive) {
+        gPreferences.mRepeatSingleActive = NO;
+        gPreferences.mRepeatActive = YES;
+        if (spectrumView) {
+            [spectrumView showNotification:@"Loop: All Tracks 🔁"];
+        }
+    } else {
+        gPreferences.mRepeatSingleActive = NO;
+        gPreferences.mRepeatActive = NO;
+        if (spectrumView) {
+            [spectrumView showNotification:@"Loop: Off ➡️"];
+        }
+    }
+    
+    [statusDisplay setNeedsDisplay:YES];
+    [miniStatusDisplay setNeedsDisplay:YES];
+}
+
+// ----------------------------------------------------------------------------
+- (BOOL) isRepeatSingleActive
+// ----------------------------------------------------------------------------
+{
+    return gPreferences.mRepeatSingleActive;
+}
+
+// ----------------------------------------------------------------------------
+- (BOOL) isRepeatAllActive
+// ----------------------------------------------------------------------------
+{
+    return gPreferences.mRepeatActive;
+}
+
+// ----------------------------------------------------------------------------
 - (IBAction) selectThemeFromMenu:(id)sender
 // ----------------------------------------------------------------------------
 {

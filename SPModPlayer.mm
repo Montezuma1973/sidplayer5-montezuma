@@ -422,6 +422,14 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     return mTotalTimeMs / 1000;
 }
 
+- (void) seekToSeconds:(int)seconds
+{
+    if (mCtx) {
+        xmp_seek_time(mCtx, seconds * 1000);
+        mCurrentTimeMs = seconds * 1000;
+    }
+}
+
 - (int) getSubtuneCount
 {
     return mSubtuneCount;

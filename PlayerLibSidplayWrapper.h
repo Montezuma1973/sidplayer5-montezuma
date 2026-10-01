@@ -123,6 +123,7 @@ struct SidRegisterFrame
 
 - (BOOL) isTuneLoaded; //    { return mSidTune != NULL; }
 - (int) getPlaybackSeconds;
+- (void) seekToSeconds:(int)seconds;
 - (int) getCurrentSubtune;  //     { return mCurrentSubtune; }
 - (int) getSubtuneCount;   //    { return mSubtuneCount; }
 - (int) getDefaultSubtune;  // { return mDefaultSubtune; }
