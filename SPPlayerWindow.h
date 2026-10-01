@@ -23,6 +23,7 @@ typedef void AudioDriver;
 @class SPStilBrowserController;
 @class SPPreferencesWindowController;
 @class SPBrowserDataSource;
+@class SPCyberChassisDeckView;
 @class SPSourceListDataSource;
 @class SPExportController;
 @class SPGradientBox;
@@ -260,6 +261,9 @@ extern NSString* SPUrlRequestUserAgentString;
 - (IBAction) toggleMenuBarMiniPlayer:(id)sender;
 - (IBAction) toggleFloatingVisualizerWidget:(id)sender;
 - (IBAction) toggleCyberChassisDeck:(id)sender;
+- (IBAction) toggleEmbeddedDeckView:(id)sender;
+@property (nonatomic, strong) SPCyberChassisDeckView *embeddedDeckView;
+@property (nonatomic, assign) BOOL isDeckEmbeddedVisible;
 
 // Channel Matrix & Voice Solo/Mute
 - (int) activeChannelCount;

@@ -22,6 +22,7 @@
 #import "SPAudioProcessor.h"
 #import "SPNowPlayingArtworkGenerator.h"
 #import "SPCyberChassisWindowController.h"
+#import "SPCyberChassisDeckView.h"
 
 #import "PlayerLibSidplayWrapper.h"
 
@@ -543,6 +544,12 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         }
     }
 
+    _isDeckEmbeddedVisible = YES;
+    self.embeddedDeckView = [[SPCyberChassisDeckView alloc] initWithFrame:NSMakeRect(0.0f, 0.0f, [rightView bounds].size.width, 210.0f)];
+    self.embeddedDeckView.playerWindow = self;
+    self.embeddedDeckView.autoresizingMask = NSViewWidthSizable;
+    [(NSView*)rightView addSubview:self.embeddedDeckView];
+
     [rightView setPostsFrameChangedNotifications:YES];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(rightViewFrameDidChange:) name:NSViewFrameDidChangeNotification object:rightView];
     [self layoutVoiceNotesView];
@@ -578,7 +585,16 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     const CGFloat desiredNotesHeight = 150.0f;
     NSRect rightBounds = rightViewAsView.bounds;
     CGFloat topBoxHeight = boxView.frame.size.height;
-    CGFloat availableHeight = rightBounds.size.height - topBoxHeight;
+    
+    CGFloat deckHeight = (_isDeckEmbeddedVisible && self.embeddedDeckView != nil) ? 210.0f : 0.0f;
+    if (_isDeckEmbeddedVisible && self.embeddedDeckView) {
+        self.embeddedDeckView.hidden = NO;
+        self.embeddedDeckView.frame = NSMakeRect(0.0f, rightBounds.size.height - topBoxHeight - deckHeight, rightBounds.size.width, deckHeight);
+    } else if (self.embeddedDeckView) {
+        self.embeddedDeckView.hidden = YES;
+    }
+    
+    CGFloat availableHeight = rightBounds.size.height - topBoxHeight - deckHeight;
     if (availableHeight <= 0.0f)
         return;
 
@@ -596,6 +612,9 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     {
         [rightViewAsView addSubview:browserScrollView positioned:NSWindowAbove relativeTo:voiceNotesView];
         [rightViewAsView addSubview:voiceNotesView positioned:NSWindowBelow relativeTo:browserScrollView];
+        if (self.embeddedDeckView && self.embeddedDeckView.superview == rightViewAsView) {
+            [rightViewAsView addSubview:self.embeddedDeckView positioned:NSWindowAbove relativeTo:browserScrollView];
+        }
     }
 
     NSView* documentView = browserScrollView.documentView;
@@ -605,10 +624,6 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         [documentView setNeedsDisplay:YES];
     }
     [browserScrollView setNeedsDisplay:YES];
-    NSLog(@"VoiceNotes layout - right: %@ browser: %@ notes: %@",
-          NSStringFromRect(rightBounds),
-          NSStringFromRect(browserScrollView.frame),
-          NSStringFromRect(voiceNotesView.frame));
 }
 
 // ----------------------------------------------------------------------------
@@ -958,6 +973,9 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     [statusDisplay setPlaybackSeconds:seconds];
     [miniStatusDisplay setPlaybackSeconds:seconds];
     [browserDataSource updateCurrentSong:seconds];
+    if (_isDeckEmbeddedVisible && self.embeddedDeckView) {
+        [self.embeddedDeckView updatePlayerState];
+    }
 
     // update sidPopup state and tooltip
     if ([player isUsbDeviceActive]) {
@@ -1032,6 +1050,8 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 {
     if (infoWindowController != nil)
         [[infoWindowController containerView] updateAnimatedViews];
+    if (_isDeckEmbeddedVisible && self.embeddedDeckView)
+        [self.embeddedDeckView.vectorScopeView setNeedsDisplay:YES];
     if ([player usbError]) {
         // in case of USB issues stop
         [self clickStopButton:self];
@@ -2284,11 +2304,17 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             widgetItem.tag = 7772;
             [viewMenu addItem:widgetItem];
             
-            NSMenuItem *deckItem = [[NSMenuItem alloc] initWithTitle:@"Show Cyber-Chassis Deck" action:@selector(toggleCyberChassisDeck:) keyEquivalent:@"c"];
+            NSMenuItem *deckItem = [[NSMenuItem alloc] initWithTitle:@"Show Cyber-Chassis Deck Window" action:@selector(toggleCyberChassisDeck:) keyEquivalent:@"c"];
             deckItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
             deckItem.target = self;
             deckItem.tag = 7773;
             [viewMenu addItem:deckItem];
+            
+            NSMenuItem *embedItem = [[NSMenuItem alloc] initWithTitle:@"Show Cyber-Chassis Deck (Main Window)" action:@selector(toggleEmbeddedDeckView:) keyEquivalent:@"k"];
+            embedItem.keyEquivalentModifierMask = NSEventModifierFlagControl | NSEventModifierFlagOption;
+            embedItem.target = self;
+            embedItem.tag = 7774;
+            [viewMenu addItem:embedItem];
         }
     }
     [self updateThemeMenuChecks];
@@ -2329,6 +2355,11 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
         NSMenuItem *deckItem = [viewMenuItem.submenu itemWithTag:7773];
         if (deckItem) {
             deckItem.state = [[SPCyberChassisWindowController sharedController] isDeckWindowVisible] ? NSControlStateValueOn : NSControlStateValueOff;
+        }
+        
+        NSMenuItem *embedItem = [viewMenuItem.submenu itemWithTag:7774];
+        if (embedItem) {
+            embedItem.state = self.isDeckEmbeddedVisible ? NSControlStateValueOn : NSControlStateValueOff;
         }
     }
 }
@@ -2683,6 +2714,15 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 // ----------------------------------------------------------------------------
 {
     [[SPCyberChassisWindowController sharedController] toggleDeckWindow:sender];
+    [self updateThemeMenuChecks];
+}
+
+// ----------------------------------------------------------------------------
+- (IBAction) toggleEmbeddedDeckView:(id)sender
+// ----------------------------------------------------------------------------
+{
+    self.isDeckEmbeddedVisible = !self.isDeckEmbeddedVisible;
+    [self layoutVoiceNotesView];
     [self updateThemeMenuChecks];
 }
 
