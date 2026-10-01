@@ -88,8 +88,12 @@ This roadmap tracks ongoing and planned user interface and user experience enhan
 
 ## 🖥️ Milestone 4: Desktop Integration & Mini-Modes
 
-- [ ] **4.1 macOS Menu Bar Mini-Player**
-  - [ ] Lightweight status item in the macOS menu bar with current song title, Play/Pause, Next/Prev Subtune, and volume controls.
+- [x] **4.1 macOS Menu Bar Mini-Player**
+  - [x] Lightweight status item in the macOS menu bar (`NSStatusItem`) with a custom crisp retro Datasette cassette template icon adapting automatically to Dark and Light macOS menu bars.
+  - [x] Rich dropdown menu with live-updating Now Playing header: Song title, author/release info, subtune count, elapsed & remaining duration (`00:00 / 00:00 (-00:00)`), and hardware silicon chip badge.
+  - [x] Complete playback controls: Play/Pause, Stop, Next/Prev Subtune, Next/Prev Track in Playlist, and Loop mode cycle.
+  - [x] Volume control submenu with quick-access presets (100%, 75%, 50%, 25%, Mute) and active level indicators.
+  - [x] Main window activation, preferences shortcut, dynamic menu bar hover tooltip, and View menu visibility toggle with `NSUserDefaults` persistence.
 
 - [ ] **4.2 Detachable Floating Retro Widget**
   - [ ] Ability to pop out the retro visualizer (Boing Ball / Cassette / Floppy) into a compact, borderless floating desktop window.

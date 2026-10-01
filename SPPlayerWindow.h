@@ -253,6 +253,12 @@ extern NSString* SPUrlRequestUserAgentString;
 - (BOOL) isRepeatSingleActive;
 - (BOOL) isRepeatAllActive;
 
+// Menu Bar Mini-Player & Volume
+- (BOOL) isAudioPlaying;
+- (float) playbackVolume;
+- (void) setPlaybackVolume:(float)volume;
+- (IBAction) toggleMenuBarMiniPlayer:(id)sender;
+
 // Channel Matrix & Voice Solo/Mute
 - (int) activeChannelCount;
 - (BOOL) isVoiceMuted:(int)voice;
