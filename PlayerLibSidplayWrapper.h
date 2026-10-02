@@ -117,6 +117,8 @@ struct SidRegisterFrame
 - (int) channelVolumeForVoice:(int) voice;
 - (NSString*) channelEffectForVoice:(int) voice;
 - (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx;
+- (void) updateC64PatternMatrix;
+- (void) resetC64TrackerState;
 
 //    sid_filter_t*            getFilterSettings()                                    { return &mFilterSettings; }
 //    void                    setFilterSettings(sid_filter_t* filterSettings);
@@ -155,6 +157,7 @@ struct SidRegisterFrame
 - (void)disconnectVendorId:(uint16_t)vid productId:(uint16_t)pid;
 
 - (struct SidRegisterFrame*) getCurrentSidRegisters;
+- (struct SidRegisterFrame*) getCurrentSidRegisters2;
 - (void) sidRegisterFrameHasChanged:(void*) inInstance inFrame:(struct SidRegisterFrame *) inRegisterFrame;
 @end
 

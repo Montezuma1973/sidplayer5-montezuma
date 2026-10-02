@@ -81,7 +81,18 @@ PlaybackSettings    mPlaybackSettings;
 
 SidRegisterLog        mRegisterLog;
 struct SidRegisterFrame currentRegisterFrame;
+struct SidRegisterFrame currentRegisterFrame2;
 
+struct SPC64TrackerCell {
+    char note[8];
+    char ins[4];
+    char vol[4];
+    char fx[6];
+};
+
+static SPC64TrackerCell sC64PatternMatrix[64][64][6];
+static int sC64LastRecordedPattern = -1;
+static int sC64LastRecordedRow = -1;
 
 SidTuneInfo*        mTuneInfo;
 AudioCoreDriverNew*        mAudioDriver;
@@ -92,6 +103,7 @@ static BOOL mIsModActive = NO;
 - (id)init
 {
     self = [super init];
+    [self resetC64TrackerState];
     if (mModPlayer == nil) {
         mModPlayer = [[SPModPlayer alloc] init];
     }
@@ -193,17 +205,7 @@ static BOOL mIsModActive = NO;
 }
 - (bool) initSIDTune:(struct PlaybackSettings*) settings
 {
-    //printf("init sidtune\n");
-    /*
-    if (mSidTune != NULL)
-    {
-        delete mSidTune;
-        mSidTune = NULL;
-        mSidEmuEngine->load(NULL);
-    }
-    */
-    //printf("init emu engine\n");
-    
+    [self resetC64TrackerState];
     [self initEmuEngineWithSettings:settings];
     
     mSidTune = std::unique_ptr <SidTune>(new SidTune((uint_least8_t *) mTuneBuffer, mTuneLength));
@@ -695,6 +697,7 @@ static inline float approximate_dac(int x, float kinkiness)
 
 - (BOOL) initCurrentSubtune
 {
+    [self resetC64TrackerState];
     if (mIsModActive && mModPlayer) {
         return [mModPlayer startSubtune:mCurrentSubtune];
     }
@@ -841,7 +844,12 @@ static inline float approximate_dac(int x, float kinkiness)
     if (mIsModActive && mModPlayer) {
         return [mModPlayer numChannels];
     }
-    int sids = mBuilder_reSID ? mBuilder_reSID->usedDevices() : 1;
+    int sids = 1;
+    if (mSidEmuEngine) {
+        sids = mSidEmuEngine->installedSIDs();
+    } else if (mBuilder_reSID) {
+        sids = mBuilder_reSID->usedDevices();
+    }
     return (sids > 1) ? 6 : 3;
 }
 
@@ -940,8 +948,9 @@ static inline float approximate_dac(int x, float kinkiness)
         return [mModPlayer channelNoteForVoice:voice];
     }
     if (voice < 0 || voice >= 6) return @"--";
+    if (voice >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) return @"--";
     if (mixer_muted[voice]) return @"--";
-    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    struct SidRegisterFrame* regFrame = (voice >= 3) ? [self getCurrentSidRegisters2] : [self getCurrentSidRegisters];
     if (!regFrame) return @"--";
     int regOffset = (voice % 3) * 7;
     uint16_t freq = regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
@@ -958,7 +967,8 @@ static inline float approximate_dac(int x, float kinkiness)
         return [mModPlayer channelInstrumentForVoice:voice];
     }
     if (voice < 0 || voice >= 6) return @"--";
-    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (voice >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) return @"--";
+    struct SidRegisterFrame* regFrame = (voice >= 3) ? [self getCurrentSidRegisters2] : [self getCurrentSidRegisters];
     if (!regFrame) return @"--";
     int regOffset = (voice % 3) * 7;
     uint8_t control = regFrame->mRegisters[regOffset + 4];
@@ -980,23 +990,95 @@ static inline float approximate_dac(int x, float kinkiness)
         return [mModPlayer channelPeriodForVoice:voice];
     }
     if (voice < 0 || voice >= 6) return 0;
-    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (voice >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) return 0;
+    struct SidRegisterFrame* regFrame = (voice >= 3) ? [self getCurrentSidRegisters2] : [self getCurrentSidRegisters];
     if (!regFrame) return 0;
     int regOffset = (voice % 3) * 7;
     return regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
 }
 
+- (double) c64MsPerRow
+{
+    double msPerRow = 120.0;
+    if (mSidEmuEngine != NULL) {
+        uint_least16_t timerA = mSidEmuEngine->getCia1TimerA();
+        BOOL isPal = YES;
+        if (mTuneInfo != NULL && mTuneInfo->clockSpeed() == SidTuneInfo::CLOCK_NTSC) {
+            isPal = NO;
+        }
+        double cpuClock = isPal ? 985248.0 : 1022727.0;
+        
+        if (timerA >= 2000 && timerA <= 40000) {
+            double timerHz = cpuClock / (double)timerA;
+            int speed = 6;
+            if (timerHz > 160.0) {
+                speed = 12;
+            }
+            msPerRow = ((double)speed / timerHz) * 1000.0;
+            if (msPerRow < 60.0) msPerRow = 60.0;
+            if (msPerRow > 250.0) msPerRow = 250.0;
+        } else if (!isPal) {
+            msPerRow = 100.0;
+        }
+    }
+    return msPerRow;
+}
+
+- (int) c64CurrentBPM
+{
+    double msPerRow = [self c64MsPerRow];
+    if (msPerRow <= 0.0) return 125;
+    int bpm = (int)round((60000.0 / msPerRow) / 4.0);
+    if (bpm < 32) bpm = 32;
+    if (bpm > 300) bpm = 300;
+    return bpm;
+}
+
+- (int) c64CurrentSpeed
+{
+    return 6;
+}
+
+- (int) c64CurrentRow
+{
+    if (mSidEmuEngine == NULL) return 0;
+    uint_least32_t ms = mSidEmuEngine->timeMs();
+    double msPerRow = [self c64MsPerRow];
+    if (msPerRow <= 0.0) msPerRow = 120.0;
+    int totalRows = (int)(ms / msPerRow);
+    return totalRows % 64;
+}
+
+- (int) c64CurrentPattern
+{
+    if (mSidEmuEngine == NULL) return 0;
+    uint_least32_t ms = mSidEmuEngine->timeMs();
+    double msPerRow = [self c64MsPerRow];
+    if (msPerRow <= 0.0) msPerRow = 120.0;
+    int totalRows = (int)(ms / msPerRow);
+    return (totalRows / 64) % 64;
+}
+
+- (int) c64CurrentOrder
+{
+    if (mSidEmuEngine == NULL) return 0;
+    uint_least32_t ms = mSidEmuEngine->timeMs();
+    double msPerRow = [self c64MsPerRow];
+    if (msPerRow <= 0.0) msPerRow = 120.0;
+    int totalRows = (int)(ms / msPerRow);
+    return (totalRows / 64);
+}
+
 - (int) currentPattern
 {
     if (mIsModActive && mModPlayer) return [mModPlayer currentPattern];
-    return 0;
+    return [self c64CurrentPattern];
 }
 
 - (int) currentRow
 {
     if (mIsModActive && mModPlayer) return [mModPlayer currentRow];
-    int secs = [self getPlaybackSeconds];
-    return (secs * 8) % 64;
+    return [self c64CurrentRow];
 }
 
 - (int) numRowsInCurrentPattern
@@ -1008,27 +1090,28 @@ static inline float approximate_dac(int x, float kinkiness)
 - (int) currentOrder
 {
     if (mIsModActive && mModPlayer) return [mModPlayer currentOrder];
-    return 0;
+    return [self c64CurrentOrder];
 }
 
 - (int) currentBPM
 {
     if (mIsModActive && mModPlayer) return [mModPlayer currentBPM];
-    return 125;
+    return [self c64CurrentBPM];
 }
 
 - (int) currentSpeed
 {
     if (mIsModActive && mModPlayer) return [mModPlayer currentSpeed];
-    return 6;
+    return [self c64CurrentSpeed];
 }
 
 - (int) channelMidiNoteForVoice:(int) voice
 {
     if (mIsModActive && mModPlayer) return [mModPlayer channelMidiNoteForVoice:voice];
     if (voice < 0 || voice >= 6) return -1;
+    if (voice >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) return -1;
     if (mixer_muted[voice]) return -1;
-    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    struct SidRegisterFrame* regFrame = (voice >= 3) ? [self getCurrentSidRegisters2] : [self getCurrentSidRegisters];
     if (!regFrame) return -1;
     int regOffset = (voice % 3) * 7;
     uint8_t control = regFrame->mRegisters[regOffset + 4];
@@ -1041,8 +1124,9 @@ static inline float approximate_dac(int x, float kinkiness)
 {
     if (mIsModActive && mModPlayer) return [mModPlayer channelVolumeForVoice:voice];
     if (voice < 0 || voice >= 6) return 0;
+    if (voice >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) return 0;
     if (mixer_muted[voice]) return 0;
-    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    struct SidRegisterFrame* regFrame = (voice >= 3) ? [self getCurrentSidRegisters2] : [self getCurrentSidRegisters];
     if (!regFrame) return 0;
     int regOffset = (voice % 3) * 7;
     uint8_t control = regFrame->mRegisters[regOffset + 4];
@@ -1056,11 +1140,14 @@ static inline float approximate_dac(int x, float kinkiness)
 {
     if (mIsModActive && mModPlayer) return [mModPlayer channelEffectForVoice:voice];
     if (voice < 0 || voice >= 6) return @"...";
-    struct SidRegisterFrame* regFrame = [self getCurrentSidRegisters];
+    if (voice >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) return @"...";
+    struct SidRegisterFrame* regFrame = (voice >= 3) ? [self getCurrentSidRegisters2] : [self getCurrentSidRegisters];
     if (!regFrame) return @"...";
     int regOffset = (voice % 3) * 7;
+    uint8_t control = regFrame->mRegisters[regOffset + 4];
+    uint8_t waveform = control & 0xF0;
     uint16_t pw = (regFrame->mRegisters[regOffset + 2] | (regFrame->mRegisters[regOffset + 3] << 8)) & 0x0FFF;
-    if (pw > 0) {
+    if (pw > 0 && (waveform & 0x40)) {
         return [NSString stringWithFormat:@"P%02X", pw >> 4];
     }
     uint8_t filt = regFrame->mRegisters[0x18] >> 4;
@@ -1070,25 +1157,165 @@ static inline float approximate_dac(int x, float kinkiness)
     return @"...";
 }
 
+- (void) resetC64TrackerState
+{
+    sC64LastRecordedPattern = -1;
+    sC64LastRecordedRow = -1;
+    for (int p = 0; p < 64; p++) {
+        for (int r = 0; r < 64; r++) {
+            for (int ch = 0; ch < 6; ch++) {
+                strcpy(sC64PatternMatrix[p][r][ch].note, "---");
+                strcpy(sC64PatternMatrix[p][r][ch].ins, "..");
+                strcpy(sC64PatternMatrix[p][r][ch].vol, "..");
+                strcpy(sC64PatternMatrix[p][r][ch].fx, "...");
+            }
+        }
+    }
+    memset(&currentRegisterFrame, 0, sizeof(currentRegisterFrame));
+    memset(&currentRegisterFrame2, 0, sizeof(currentRegisterFrame2));
+}
+
+- (void) updateC64PatternMatrix
+{
+    if (mIsModActive || mSidEmuEngine == NULL) return;
+    
+    int curPat = [self c64CurrentPattern];
+    int curRow = [self c64CurrentRow];
+    int curPatIdx = curPat % 64;
+    int curRowIdx = curRow % 64;
+    
+    if (curPat != sC64LastRecordedPattern) {
+        for (int r = 0; r < 64; r++) {
+            for (int ch = 0; ch < 6; ch++) {
+                strcpy(sC64PatternMatrix[curPatIdx][r][ch].note, "---");
+                strcpy(sC64PatternMatrix[curPatIdx][r][ch].ins, "..");
+                strcpy(sC64PatternMatrix[curPatIdx][r][ch].vol, "..");
+                strcpy(sC64PatternMatrix[curPatIdx][r][ch].fx, "...");
+            }
+        }
+        sC64LastRecordedPattern = curPat;
+        sC64LastRecordedRow = -1;
+    }
+    
+    mSidEmuEngine->getSidStatus(0, &currentRegisterFrame.mRegisters[0]);
+    BOOL hasDualSID = (mSidEmuEngine->installedSIDs() > 1);
+    if (hasDualSID) {
+        mSidEmuEngine->getSidStatus(1, &currentRegisterFrame2.mRegisters[0]);
+    }
+    
+    int numChannels = hasDualSID ? 6 : 3;
+    
+    for (int ch = 0; ch < numChannels; ch++) {
+        struct SidRegisterFrame* regFrame = (ch >= 3) ? &currentRegisterFrame2 : &currentRegisterFrame;
+        int regOffset = (ch % 3) * 7;
+        uint8_t control = regFrame->mRegisters[regOffset + 4];
+        BOOL gateOn = (control & 0x01) != 0;
+        uint16_t freq = regFrame->mRegisters[regOffset] | (regFrame->mRegisters[regOffset + 1] << 8);
+        uint8_t waveform = control & 0xF0;
+        uint8_t sustain = (regFrame->mRegisters[regOffset + 6] >> 4) & 0x0F;
+        
+        SPC64TrackerCell &cell = sC64PatternMatrix[curPatIdx][curRowIdx][ch];
+        
+        if (gateOn) {
+            const char* nStr = SPSidNoteStringForFrequency(freq);
+            if (nStr && strlen(nStr) > 0) {
+                strncpy(cell.note, nStr, sizeof(cell.note) - 1);
+                cell.note[sizeof(cell.note) - 1] = '\0';
+            }
+            
+            const char* insStr = "01";
+            if (waveform & 0x40) insStr = "03"; // Pulse
+            else if (waveform & 0x20) insStr = "02"; // Saw
+            else if (waveform & 0x10) insStr = "01"; // Tri
+            else if (waveform & 0x80) insStr = "04"; // Noise
+            strncpy(cell.ins, insStr, sizeof(cell.ins) - 1);
+            cell.ins[sizeof(cell.ins) - 1] = '\0';
+            
+            int vol = (int)(sustain * 4.26f);
+            if (vol > 0) {
+                snprintf(cell.vol, sizeof(cell.vol), "%02d", vol);
+            } else {
+                strcpy(cell.vol, "..");
+            }
+            
+            uint16_t pw = (regFrame->mRegisters[regOffset + 2] | (regFrame->mRegisters[regOffset + 3] << 8)) & 0x0FFF;
+            uint8_t filt = regFrame->mRegisters[0x18] >> 4;
+            if (pw > 0 && (waveform & 0x40)) {
+                snprintf(cell.fx, sizeof(cell.fx), "P%02X", pw >> 4);
+            } else if (filt > 0) {
+                snprintf(cell.fx, sizeof(cell.fx), "F%02X", regFrame->mRegisters[0x16]);
+            } else {
+                strcpy(cell.fx, "...");
+            }
+        }
+    }
+    
+    sC64LastRecordedRow = curRow;
+}
+
 - (void) getTrackerCellForChannel:(int)ch row:(int)row note:(NSString* _Nonnull * _Nonnull)outNote ins:(NSString* _Nonnull * _Nonnull)outIns vol:(NSString* _Nonnull * _Nonnull)outVol fx:(NSString* _Nonnull * _Nonnull)outFx
 {
     if (mIsModActive && mModPlayer) {
         [mModPlayer getTrackerCellForChannel:ch row:row note:outNote ins:outIns vol:outVol fx:outFx];
         return;
     }
-    int curR = [self currentRow];
-    if (row == curR) {
-        *outNote = [self channelNoteForVoice:ch];
-        *outIns = [self channelInstrumentForVoice:ch];
-        int v = [self channelVolumeForVoice:ch];
-        *outVol = (v > 0) ? [NSString stringWithFormat:@"%02d", v] : @"..";
-        *outFx = [self channelEffectForVoice:ch];
-    } else {
+    
+    if (ch < 0 || ch >= 6) {
         *outNote = @"---";
         *outIns = @"..";
         *outVol = @"..";
         *outFx = @"...";
+        return;
     }
+    if (ch >= 3 && (!mSidEmuEngine || mSidEmuEngine->installedSIDs() <= 1)) {
+        *outNote = @"---";
+        *outIns = @"..";
+        *outVol = @"..";
+        *outFx = @"...";
+        return;
+    }
+    
+    int curPatIdx = [self c64CurrentPattern] % 64;
+    int curRow = [self c64CurrentRow];
+    
+    if (row == curRow) {
+        SPC64TrackerCell &cell = sC64PatternMatrix[curPatIdx][curRow % 64][ch];
+        if (strcmp(cell.note, "---") != 0) {
+            *outNote = [NSString stringWithUTF8String:cell.note];
+            *outIns = [NSString stringWithUTF8String:cell.ins];
+            *outVol = [NSString stringWithUTF8String:cell.vol];
+            *outFx = [NSString stringWithUTF8String:cell.fx];
+        } else {
+            NSString *liveNote = [self channelNoteForVoice:ch];
+            if (![liveNote isEqualToString:@"--"] && ![liveNote isEqualToString:@"---"]) {
+                *outNote = liveNote;
+                *outIns = @"01";
+                int v = [self channelVolumeForVoice:ch];
+                *outVol = (v > 0) ? [NSString stringWithFormat:@"%02d", v] : @"..";
+                *outFx = [self channelEffectForVoice:ch];
+            } else {
+                *outNote = @"---";
+                *outIns = @"..";
+                *outVol = @"..";
+                *outFx = @"...";
+            }
+        }
+        return;
+    }
+    
+    if (row >= 0 && row < 64) {
+        SPC64TrackerCell &cell = sC64PatternMatrix[curPatIdx][row][ch];
+        *outNote = [NSString stringWithUTF8String:cell.note];
+        *outIns = [NSString stringWithUTF8String:cell.ins];
+        *outVol = [NSString stringWithUTF8String:cell.vol];
+        *outFx = [NSString stringWithUTF8String:cell.fx];
+        return;
+    }
+    
+    *outNote = @"---";
+    *outIns = @"..";
+    *outVol = @"..";
+    *outFx = @"...";
 }
 /* FIXME: FILTER SETTINGS?!
  // ----------------------------------------------------------------------------
@@ -1208,6 +1435,7 @@ static inline float approximate_dac(int x, float kinkiness)
 }
 - (void) stopPlayback
 {
+    [self resetC64TrackerState];
     if (mIsModActive && mModPlayer) {
         [mModPlayer stopPlayback];
         mAudioDriver->stopPlayback();
@@ -1540,10 +1768,22 @@ static inline float approximate_dac(int x, float kinkiness)
 {
     if (mSidEmuEngine != NULL) {
         mSidEmuEngine->getSidStatus(0, &currentRegisterFrame.mRegisters[0]);
+        if (mSidEmuEngine->installedSIDs() > 1) {
+            mSidEmuEngine->getSidStatus(1, &currentRegisterFrame2.mRegisters[0]);
+        }
         return &currentRegisterFrame;
     }
     else
         return &currentRegisterFrame;
+}
+
+- (struct SidRegisterFrame*) getCurrentSidRegisters2
+{
+    if (mSidEmuEngine != NULL && mSidEmuEngine->installedSIDs() > 1) {
+        mSidEmuEngine->getSidStatus(1, &currentRegisterFrame2.mRegisters[0]);
+        return &currentRegisterFrame2;
+    }
+    return nil;
 }
 
 - (void) sidRegisterFrameHasChanged:(void*) inInstance inFrame:(SidRegisterFrame *) inRegisterFrame
