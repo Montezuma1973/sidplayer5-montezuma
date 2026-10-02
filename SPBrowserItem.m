@@ -219,7 +219,7 @@
 			continue;
 			
 		NSString* ext = file.pathExtension.lowercaseString;
-		if ([ext isEqualToString:@"sid"] || [SPModPlayer isModFile:path] || folder)
+		if ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [SPModPlayer isModFile:path] || folder)
 		{
 			SPBrowserItem* item = [[SPBrowserItem alloc] initWithPath:path isFolder:folder forParent:parentItem withDefaultSubtune:0];
 			if (item != nil)

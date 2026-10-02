@@ -59,14 +59,24 @@ static inline BOOL IsKnownModExtension(NSString* ext)
     if (!path || path.length == 0)
         return NO;
     
-    NSString* ext = [path.pathExtension lowercaseString];
-    if (IsKnownModExtension(ext))
+    struct xmp_test_info ti;
+    if (xmp_test_module([path fileSystemRepresentation], &ti) == 0)
     {
         return YES;
     }
     
-    struct xmp_test_info ti;
-    return (xmp_test_module([path fileSystemRepresentation], &ti) == 0);
+    NSString* ext = [path.pathExtension lowercaseString];
+    if (IsKnownModExtension(ext))
+    {
+        xmp_context ctx = xmp_create_context();
+        if (ctx) {
+            int ret = xmp_load_module(ctx, (char*)[path fileSystemRepresentation]);
+            xmp_free_context(ctx);
+            if (ret == 0) return YES;
+        }
+    }
+    
+    return NO;
 }
 
 + (BOOL) isModData:(NSData*)data

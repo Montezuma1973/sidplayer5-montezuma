@@ -1090,6 +1090,9 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     
     if (player != NULL)
     {
+        if (![player isCurrentTuneMod]) {
+            [player updateC64PatternMatrix];
+        }
         struct SidRegisterFrame *registerFrame = [player getCurrentSidRegisters];
         unsigned char* registers = registerFrame->mRegisters;
         
