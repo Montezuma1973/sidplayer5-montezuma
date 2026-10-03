@@ -1277,7 +1277,7 @@
                     </splitView>
                 </subviews>
             </view>
-            <toolbar key="toolbar" implicitIdentifier="4160A338-4B68-4901-85A1-A6940E89E30B" centeredItem="697" showsBaselineSeparator="NO" displayMode="iconOnly" sizeMode="regular" id="427">
+            <toolbar key="toolbar" implicitIdentifier="4160A338-4B68-4901-85A1-A6940E89E30B" showsBaselineSeparator="NO" displayMode="iconOnly" sizeMode="regular" id="427">
                 <allowedToolbarItems>
                     <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="433"/>
                     <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="432"/>
@@ -1431,23 +1431,12 @@
                             </view>
                         </box>
                     </toolbarItem>
-                    <toolbarItem implicitItemIdentifier="F496D0B9-3EF8-4398-A96F-4DEEEFBD51E1" label="Status" paletteLabel="Status" tag="-1" sizingBehavior="auto" id="748">
-                        <nil key="toolTip"/>
-                        <box key="view" autoresizesSubviews="NO" boxType="custom" borderType="line" borderWidth="0.0" titlePosition="noTitle" id="747" customClass="SPStatusDisplayView">
-                            <rect key="frame" x="0.0" y="14" width="400" height="46"/>
-                            <autoresizingMask key="autoresizingMask"/>
-                            <view key="contentView" id="rSe-qd-gdQ">
-                                <rect key="frame" x="0.0" y="0.0" width="400" height="46"/>
-                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                            </view>
-                        </box>
-                    </toolbarItem>
                 </allowedToolbarItems>
                 <defaultToolbarItems>
                     <toolbarItem reference="665"/>
                     <toolbarItem reference="EdM-CA-UNY"/>
                     <toolbarItem reference="688"/>
-                    <toolbarItem reference="748"/>
+                    <toolbarItem reference="433"/>
                     <toolbarItem reference="525"/>
                     <toolbarItem reference="697"/>
                 </defaultToolbarItems>
@@ -1499,7 +1488,6 @@
                 <outlet property="stackViewExternal2" destination="8xl-2C-i7L" id="aPP-KA-WxW"/>
                 <outlet property="stackViewExternal3" destination="LV5-Cb-k4h" id="jqR-bt-6SG"/>
                 <outlet property="stackViewExternal4" destination="VLj-F8-by6" id="IT3-gt-Gde"/>
-                <outlet property="statusDisplay" destination="747" id="749"/>
                 <outlet property="stilBrowserMenuItem" destination="806" id="1933"/>
                 <outlet property="subtuneSelectionMenu" destination="1936" id="1957"/>
                 <outlet property="tempoSlider" destination="691" id="1136"/>

@@ -476,6 +476,17 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
     
     [self setupRemoteCommandCenter];
     
+    NSToolbar *tb = [self toolbar];
+    if (tb) {
+        for (NSInteger i = (NSInteger)tb.items.count - 1; i >= 0; i--) {
+            NSToolbarItem *item = tb.items[i];
+            if ([item.itemIdentifier isEqualToString:@"F496D0B9-3EF8-4398-A96F-4DEEEFBD51E1"] ||
+                [item.label isEqualToString:@"Status"]) {
+                [tb removeItemAtIndex:i];
+            }
+        }
+    }
+    
     volumeSlider.floatValue = gPreferences.mPlaybackVolume * 100.0f;
     miniVolumeSlider.floatValue = gPreferences.mPlaybackVolume * 100.0f;
     volumeIsMuted = NO;
