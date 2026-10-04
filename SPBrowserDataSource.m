@@ -2486,10 +2486,19 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 					[[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isFolder];
 				
 					SPBrowserItem* itemA = [[SPBrowserItem alloc] initWithPath:path isFolder:isFolder forParent:nil withDefaultSubtune:0];
-					[rootItems addObject:itemA];
+					if (itemA != nil)
+						[rootItems addObject:itemA];
 				}
                 [self setBrowserMode:BROWSER_MODE_DRAGGED_FILELIST];
                 [self setPlaylistModeBrowserColumns: false];
+
+				[rootItems sortUsingDescriptors:[browserView sortDescriptors]];
+				[browserView reloadData];
+				if ([rootItems count] > 0)
+				{
+					[browserView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
+					[browserView scrollRowToVisible:0];
+				}
 
 				[pathControl setURL:[NSURL URLWithString:[NSString stringWithFormat:@"http://dummy/DRAGGED%%20ITEMS"]]];
 				NSPathComponentCell* componentCell = [[pathControl pathComponentCells] objectAtIndex:0];
