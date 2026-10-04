@@ -54,6 +54,11 @@ static inline BOOL IsKnownModExtension(NSString* ext)
             [ext isEqualToString:@"ult"]);
 }
 
++ (BOOL) isKnownModExtension:(NSString*)ext
+{
+    return IsKnownModExtension([ext lowercaseString]);
+}
+
 + (BOOL) isModFile:(NSString*)path
 {
     if (!path || path.length == 0)

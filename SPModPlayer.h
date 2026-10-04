@@ -13,6 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface SPModPlayer : NSObject
 
++ (BOOL) isKnownModExtension:(NSString*)ext;
 + (BOOL) isModFile:(NSString*)path;
 + (BOOL) isModData:(NSData*)data;
 + (BOOL) getModInfoForPath:(NSString*)path title:(NSString* _Nullable * _Nullable)outTitle format:(NSString* _Nullable * _Nullable)outFormat;

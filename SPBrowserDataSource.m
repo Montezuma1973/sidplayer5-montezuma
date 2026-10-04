@@ -582,8 +582,9 @@ NSDate* fillStart = nil;
 	playlist = nil;
 	[rootItems removeAllObjects];
 	BOOL stateRestored = [self restoreBrowserState];
-	if (!stateRestored)
+	if (!stateRestored || [rootItems count] == 0)
 	{
+		[rootItems removeAllObjects];
 		[SPBrowserItem fillArray:rootItems withDirectoryContentsAtPath:currentPath andParent:nil];
 		[rootItems sortUsingDescriptors:[browserView sortDescriptors]];
 		[browserView reloadData];
@@ -2225,14 +2226,16 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 				if ([cell font]) attributes[NSFontAttributeName] = [cell font];
 			}
 			attributes[NSForegroundColorAttributeName] = textColor;
-			NSAttributedString* str = [[NSAttributedString alloc] initWithString:[cell stringValue] attributes:attributes];
+			NSString* cellStr = [cell stringValue] ?: @"";
+			NSAttributedString* str = [[NSAttributedString alloc] initWithString:cellStr attributes:attributes];
 			[cell setAttributedStringValue:str];
 		}
 		else if ([item fileDoesNotExist])
 		{
 			NSMutableDictionary* attributes = [[[cell attributedStringValue] attributesAtIndex:0 effectiveRange:NULL] mutableCopy];
 			[attributes setObject:[NSColor redColor] forKey:NSForegroundColorAttributeName];
-			NSAttributedString* name = [[NSAttributedString alloc] initWithString:[cell stringValue] attributes:attributes];
+			NSString* cellStr = [cell stringValue] ?: @"";
+			NSAttributedString* name = [[NSAttributedString alloc] initWithString:cellStr attributes:attributes];
 			[cell setAttributedStringValue:name];
 		}
 	
@@ -2382,19 +2385,7 @@ static NSImage* SPRepeatSingleButtonImage = nil;
         
         if ([paths count] == 1 && isFolder)
         {
-            [self setInProgress:YES];
-            [self stopSearchAndClearSearchString];
-    
-            currentPath = firstPath;
-            [browserView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
-            
-            [browserView scrollRowToVisible:0];
-            [self saveBrowserState];
-            [rootItems removeAllObjects];
-            [SPBrowserItem fillArray:rootItems withDirectoryContentsAtPath:currentPath andParent:nil];
-            [rootItems sortUsingDescriptors:[browserView sortDescriptors]];
-            [pathControl setURL:[NSURL fileURLWithPath:currentPath]];
-            [self setInProgress:NO];
+            [self browseToPath:firstPath];
         }
         else
         {
@@ -2473,19 +2464,7 @@ static NSImage* SPRepeatSingleButtonImage = nil;
 			
 			if ([paths count] == 1 && isFolder)
 			{
-				[self setInProgress:YES];
-				[self stopSearchAndClearSearchString];
-		
-				currentPath = firstPath;
-				[browserView selectRowIndexes:[NSIndexSet indexSetWithIndex:0] byExtendingSelection:NO];
-				
-                [browserView scrollRowToVisible:0];
-				[self saveBrowserState];
-				[rootItems removeAllObjects];
-				[SPBrowserItem fillArray:rootItems withDirectoryContentsAtPath:currentPath andParent:nil];
-				[rootItems sortUsingDescriptors:[browserView sortDescriptors]];
-				[pathControl setURL:[NSURL fileURLWithPath:currentPath]];
-				[self setInProgress:NO];
+				[self browseToPath:firstPath];
 			}
 			else
 			{

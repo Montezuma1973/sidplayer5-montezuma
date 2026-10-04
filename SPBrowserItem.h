@@ -69,7 +69,7 @@ typedef NS_ENUM(NSInteger, SPItemType) {
 @property (NS_NONATOMIC_IOSONLY, readonly) BOOL fileDoesNotExist;
 
 @property (NS_NONATOMIC_IOSONLY, readonly) BOOL hasChildren;
-@property (NS_NONATOMIC_IOSONLY, readonly, copy) NSMutableArray *children;
+@property (NS_NONATOMIC_IOSONLY, readonly, strong) NSMutableArray *children;
 
 @property (NS_NONATOMIC_IOSONLY, readonly, strong) SPBrowserItem *parent;
 
