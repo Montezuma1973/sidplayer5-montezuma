@@ -750,6 +750,13 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 // ----------------------------------------------------------------------------
 - (void) playTuneAtPath:(NSString*)path subtune:(int)subtuneIndex
 {
+    if (path == nil || path.length == 0)
+        return;
+
+    BOOL isDir = NO;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir] || isDir)
+        return;
+
     struct PlaybackSettings dummySettings;
     [gPreferences getPlaybackSettings:&dummySettings];
     dummySettings.mFrequency = audioDriver->getSampleRate();
@@ -2090,13 +2097,16 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
             NSArray* urlsToOpen = openPanel.URLs;
             NSString* file = [urlsToOpen[0] path];
             
-            //NSString* relativePath = [[SPCollectionUtilities sharedInstance] makePathRelativeToCollectionRoot:file];
-            //if (relativePath != nil)
-            //  [[SPStilBrowserController sharedInstance] displayEntryForRelativePath:relativePath];
-            [self->browserDataSource addFile:file];
-            
-            
-            [self playTuneAtPath:file];
+            BOOL isDir = NO;
+            if ([[NSFileManager defaultManager] fileExistsAtPath:file isDirectory:&isDir] && isDir)
+            {
+                [self->browserDataSource browseToPath:file];
+            }
+            else
+            {
+                [self->browserDataSource addFile:file];
+                [self playTuneAtPath:file];
+            }
         }
     }
     ];
@@ -3000,13 +3010,16 @@ static NSString* SPInstrumentStringForControl(uint8_t control)
 // ----------------------------------------------------------------------------
 - (BOOL) application:(NSApplication*)theApplication openFile:(NSString*)filename
 {
-    /*
-     NSString* relativePath = [[SPCollectionUtilities sharedInstance] makePathRelativeToCollectionRoot:filename];
-     NSLog(@"SIDPlayer -- rel Path: %@", relativePath);
-     if (relativePath != nil)
-     [[SPStilBrowserController sharedInstance] displayEntryForRelativePath:relativePath];
-     NSLog(@"SIDPlayer-- name : %@", filename);
-     */
+    if (filename == nil || filename.length == 0)
+        return NO;
+
+    BOOL isDir = NO;
+    if ([[NSFileManager defaultManager] fileExistsAtPath:filename isDirectory:&isDir] && isDir)
+    {
+        [self->browserDataSource browseToPath:filename];
+        return YES;
+    }
+
     [self->browserDataSource addFile:filename];
     [self playTuneAtPath:filename];
     return YES;

@@ -233,7 +233,9 @@
 			continue;
 
 		NSString* ext = file.pathExtension.lowercaseString;
-		if (folder || [ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [SPModPlayer isKnownModExtension:ext] || [SPModPlayer isModFile:path])
+		NSString* lowerFile = [file lowercaseString];
+		BOOL isModPrefixed = [lowerFile hasPrefix:@"mod."] || [lowerFile hasPrefix:@"xm."] || [lowerFile hasPrefix:@"s3m."] || [lowerFile hasPrefix:@"it."] || [lowerFile hasPrefix:@"med."];
+		if (folder || [ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || isModPrefixed || [SPModPlayer isKnownModExtension:ext] || [SPModPlayer isModFile:path])
 		{
 			SPBrowserItem* item = [[SPBrowserItem alloc] initWithPath:path isFolder:folder forParent:parentItem withDefaultSubtune:0];
 			if (item != nil)
