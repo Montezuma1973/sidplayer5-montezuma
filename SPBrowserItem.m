@@ -44,7 +44,7 @@
 		}
 		else
 		{
-			FILE* fileHandle = fopen([thePath cStringUsingEncoding:[NSString defaultCStringEncoding]], "rb");
+			FILE* fileHandle = fopen([thePath fileSystemRepresentation], "rb");
 			if (fileHandle == NULL)
 			{
 				title = @"* FILE NOT FOUND *";
@@ -86,7 +86,22 @@
 						subTuneCount = (modSubtunes > 0) ? (unsigned short)modSubtunes : 1;
 						defaultSubTune = (subtuneIndex > 0 && subtuneIndex <= subTuneCount) ? (unsigned short)subtuneIndex : 1;
 						title = modTitle ? modTitle : [thePath.lastPathComponent stringByDeletingPathExtension];
-						author = @"";
+						
+						NSString* modAuthor = @"";
+						if (parentItem != nil && [parentItem isFolder] && [[parentItem title] length] > 0 &&
+						    ![[parentItem title] isEqualToString:@"Amiga"] && ![[parentItem title] isEqualToString:@"Mods"])
+						{
+							modAuthor = [parentItem title];
+						}
+						else
+						{
+							NSString* parentFolder = thePath.stringByDeletingLastPathComponent.lastPathComponent;
+							if (parentFolder.length > 0 && ![parentFolder isEqualToString:@"Amiga"] && ![parentFolder isEqualToString:@"Mods"])
+							{
+								modAuthor = parentFolder;
+							}
+						}
+						author = modAuthor;
 						releaseInfo = modFormat ? modFormat : @"Tracker Module";
 						if (modLength <= 0)
 						{
@@ -192,42 +207,38 @@
 + (void) fillArray:(NSMutableArray*)browserItems withDirectoryContentsAtPath:(NSString*)rootPath andParent:(SPBrowserItem*)parentItem
 // ----------------------------------------------------------------------------
 {
-	NSDirectoryEnumerator* enumerator = [[NSFileManager defaultManager] enumeratorAtPath:rootPath];
-	NSString* file;
+	if (rootPath == nil || rootPath.length == 0)
+		return;
 
-	while(file = [enumerator nextObject])
+	NSError* error = nil;
+	NSArray* files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:rootPath error:&error];
+	if (!files || error)
+		return;
+
+	for (NSString* file in files)
 	{
-		if ([file characterAtIndex:0] == '.')
-		{
-			[enumerator skipDescendents];
+		if (file.length == 0 || [file hasPrefix:@"."])
 			continue;
-		}
 
 		if ([file caseInsensitiveCompare:@"DOCUMENTS"] == NSOrderedSame)
-		{
-			[enumerator skipDescendents];
 			continue;
-		}
 
-        if ([file containsString:@"_2SID"] || [file containsString:@"_3SID"])
-            continue;
-        
+		if ([file containsString:@"_2SID"] || [file containsString:@"_3SID"])
+			continue;
+
 		NSString* path = [rootPath stringByAppendingPathComponent:file];
 		BOOL folder = NO;
 		BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&folder];
 		if (!exists)
 			continue;
-			
+
 		NSString* ext = file.pathExtension.lowercaseString;
-		if ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [SPModPlayer isModFile:path] || folder)
+		if (folder || [ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || [SPModPlayer isKnownModExtension:ext] || [SPModPlayer isModFile:path])
 		{
 			SPBrowserItem* item = [[SPBrowserItem alloc] initWithPath:path isFolder:folder forParent:parentItem withDefaultSubtune:0];
 			if (item != nil)
 				[browserItems addObject:item];
 		}
-		
-		if (folder)
-			[enumerator skipDescendents];
 	}
 }
 
