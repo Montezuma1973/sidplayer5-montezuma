@@ -252,11 +252,11 @@
         valStr = [NSString stringWithFormat:@"%.1f%@", _knobValue, _unitText ?: @""];
     }
     
-    NSDictionary *valAttrs = @{
-        NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:10.5f weight:NSFontWeightBold],
-        NSForegroundColorAttributeName: neon,
-        NSParagraphStyleAttributeName: style
-    };
+    NSFont *valFont = [NSFont monospacedDigitSystemFontOfSize:10.5f weight:NSFontWeightBold] ?: [NSFont boldSystemFontOfSize:10.5f] ?: [NSFont systemFontOfSize:10.5f];
+    NSMutableDictionary *valAttrs = [NSMutableDictionary dictionaryWithCapacity:3];
+    if (valFont) valAttrs[NSFontAttributeName] = valFont;
+    if (neon) valAttrs[NSForegroundColorAttributeName] = neon;
+    if (style) valAttrs[NSParagraphStyleAttributeName] = style;
     NSRect valRect = NSMakeRect(0, 2.0f, w, 14.0f);
     [valStr drawInRect:valRect withAttributes:valAttrs];
 }

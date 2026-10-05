@@ -8,6 +8,32 @@
 
 #import "SPNixieDisplayView.h"
 
+static inline NSFont *SafeMonospacedFont(CGFloat size, NSFontWeight weight) {
+    if (size < 4.0f) size = 4.0f;
+    NSFont *font = [NSFont monospacedSystemFontOfSize:size weight:weight];
+    if (!font) font = [NSFont boldSystemFontOfSize:size];
+    if (!font) font = [NSFont systemFontOfSize:size];
+    if (!font) font = [NSFont systemFontOfSize:10.0f];
+    return font;
+}
+
+static inline NSFont *SafeMonospacedDigitFont(CGFloat size, NSFontWeight weight) {
+    if (size < 4.0f) size = 4.0f;
+    NSFont *font = [NSFont monospacedDigitSystemFontOfSize:size weight:weight];
+    if (!font) font = [NSFont boldSystemFontOfSize:size];
+    if (!font) font = [NSFont systemFontOfSize:size];
+    if (!font) font = [NSFont systemFontOfSize:10.0f];
+    return font;
+}
+
+static inline NSDictionary *SafeTextAttributes(NSFont * _Nullable font, NSColor * _Nullable color, NSParagraphStyle * _Nullable style) {
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:3];
+    if (font) dict[NSFontAttributeName] = font;
+    if (color) dict[NSForegroundColorAttributeName] = color;
+    if (style) dict[NSParagraphStyleAttributeName] = style;
+    return dict;
+}
+
 @implementation SPNixieDisplayView
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
@@ -51,10 +77,15 @@
 - (void)drawRect:(NSRect)dirtyRect {
     [super drawRect:dirtyRect];
     
-    CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
     NSRect bounds = self.bounds;
     CGFloat w = bounds.size.width;
     CGFloat h = bounds.size.height;
+    if (w < 20.0f || h < 20.0f) {
+        return;
+    }
+    
+    CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+    if (!ctx) return;
     
     // Background chassis cutout
     NSBezierPath *bgPath = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:8.0f yRadius:8.0f];
@@ -67,20 +98,16 @@
     // Header Label (Top badge)
     NSMutableParagraphStyle *hdrStyle = [[NSMutableParagraphStyle alloc] init];
     hdrStyle.alignment = NSTextAlignmentCenter;
-    NSDictionary *hdrAttrs = @{
-        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:9.0f weight:NSFontWeightHeavy],
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.80f blue:0.35f alpha:0.95f],
-        NSParagraphStyleAttributeName: hdrStyle
-    };
+    NSFont *hdrFont = SafeMonospacedFont(9.0f, NSFontWeightHeavy);
+    NSColor *hdrColor = [NSColor colorWithCalibratedRed:1.0f green:0.80f blue:0.35f alpha:0.95f];
+    NSDictionary *hdrAttrs = SafeTextAttributes(hdrFont, hdrColor, hdrStyle);
     NSString *hdrText = _customLabel ?: (_showSubtune ? @"SUBTUNE SONG" : @"TRACK TIME");
     [hdrText drawInRect:NSMakeRect(0, h - 14.0f, w, 12.0f) withAttributes:hdrAttrs];
     
     // Sub-Label (Bottom annotation)
-    NSDictionary *subAttrs = @{
-        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:7.5f weight:NSFontWeightBold],
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.60f green:0.78f blue:0.88f alpha:0.90f],
-        NSParagraphStyleAttributeName: hdrStyle
-    };
+    NSFont *subFont = SafeMonospacedFont(7.5f, NSFontWeightBold);
+    NSColor *subColor = [NSColor colorWithCalibratedRed:0.60f green:0.78f blue:0.88f alpha:0.90f];
+    NSDictionary *subAttrs = SafeTextAttributes(subFont, subColor, hdrStyle);
     NSString *subText = _subLabel ?: (_showSubtune ? @"CURRENT / TOTAL" : @"MINUTES : SECONDS");
     [subText drawInRect:NSMakeRect(0, 1.0f, w, 10.0f) withAttributes:subAttrs];
     
@@ -181,32 +208,21 @@
     style.alignment = NSTextAlignmentCenter;
     
     CGFloat fontSize = isSep ? (h * 0.45f) : (h * 0.55f);
-    NSFont *font = [NSFont monospacedDigitSystemFontOfSize:fontSize weight:NSFontWeightBold];
+    if (fontSize < 6.0f) fontSize = 6.0f;
+    NSFont *font = SafeMonospacedDigitFont(fontSize, NSFontWeightBold);
     
     NSRect textRect = NSMakeRect(x, y + (h - fontSize) * 0.45f, w, fontSize * 1.25f);
     
     // Pass 1: Soft orange outer glow aura
-    NSDictionary *glowAttrs1 = @{
-        NSFontAttributeName: font,
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.35f blue:0.0f alpha:0.35f],
-        NSParagraphStyleAttributeName: style
-    };
+    NSDictionary *glowAttrs1 = SafeTextAttributes(font, [NSColor colorWithCalibratedRed:1.0f green:0.35f blue:0.0f alpha:0.35f], style);
     [ch drawInRect:NSOffsetRect(textRect, 0, 0) withAttributes:glowAttrs1];
     
     // Pass 2: Bright warm orange bloom
-    NSDictionary *glowAttrs2 = @{
-        NSFontAttributeName: font,
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.55f blue:0.10f alpha:0.75f],
-        NSParagraphStyleAttributeName: style
-    };
+    NSDictionary *glowAttrs2 = SafeTextAttributes(font, [NSColor colorWithCalibratedRed:1.0f green:0.55f blue:0.10f alpha:0.75f], style);
     [ch drawInRect:textRect withAttributes:glowAttrs2];
     
     // Pass 3: Saturated filament core
-    NSDictionary *coreAttrs = @{
-        NSFontAttributeName: font,
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0f green:0.85f blue:0.35f alpha:1.0f],
-        NSParagraphStyleAttributeName: style
-    };
+    NSDictionary *coreAttrs = SafeTextAttributes(font, [NSColor colorWithCalibratedRed:1.0f green:0.85f blue:0.35f alpha:1.0f], style);
     [ch drawInRect:textRect withAttributes:coreAttrs];
     
     // 4. Glass Reflection & Specular Highlights

@@ -385,10 +385,10 @@
     if (_scopeMode == SPVectorScopeModeCircularWave) modeLabel = @"RADIAL WAVE";
     else if (_scopeMode == SPVectorScopeModeRadarSweep) modeLabel = @"RADAR SWEEP";
     
-    NSDictionary *labelAttr = @{
-        NSFontAttributeName: [NSFont monospacedSystemFontOfSize:8.0f weight:NSFontWeightBold],
-        NSForegroundColorAttributeName: [beamCore colorWithAlphaComponent:0.85f]
-    };
+    NSFont *scopeFont = [NSFont monospacedSystemFontOfSize:8.0f weight:NSFontWeightBold] ?: [NSFont boldSystemFontOfSize:8.0f] ?: [NSFont systemFontOfSize:8.0f];
+    NSMutableDictionary *labelAttr = [NSMutableDictionary dictionaryWithCapacity:2];
+    if (scopeFont) labelAttr[NSFontAttributeName] = scopeFont;
+    if (beamCore) labelAttr[NSForegroundColorAttributeName] = [beamCore colorWithAlphaComponent:0.85f];
     NSSize lSize = [modeLabel sizeWithAttributes:labelAttr];
     [modeLabel drawAtPoint:NSMakePoint(center.x - lSize.width * 0.5f, bounds.origin.y + 4.0f) withAttributes:labelAttr];
 }

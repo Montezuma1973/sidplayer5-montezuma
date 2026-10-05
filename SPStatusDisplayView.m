@@ -722,10 +722,10 @@
 		int remSecs = (int)MAX(0, currentSonglengthInSeconds - hoverScrubSeconds);
 		NSString *tooltipStr = [NSString stringWithFormat:@"%02d:%02d (-%02d:%02d)", elSecs / 60, elSecs % 60, remSecs / 60, remSecs % 60];
 		
-		NSDictionary *tipAttrs = @{
-			NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9.0f weight:NSFontWeightBold],
-			NSForegroundColorAttributeName: [NSColor whiteColor]
-		};
+		NSFont *tipFont = [NSFont monospacedDigitSystemFontOfSize:9.0f weight:NSFontWeightBold] ?: [NSFont boldSystemFontOfSize:9.0f] ?: [NSFont systemFontOfSize:9.0f];
+		NSMutableDictionary *tipAttrs = [NSMutableDictionary dictionaryWithCapacity:2];
+		if (tipFont) tipAttrs[NSFontAttributeName] = tipFont;
+		tipAttrs[NSForegroundColorAttributeName] = [NSColor whiteColor];
 		NSSize tipSize = [tooltipStr sizeWithAttributes:tipAttrs];
 		CGFloat tipPadding = 4.0f;
 		CGFloat tipW = tipSize.width + tipPadding * 2.0f;
