@@ -178,7 +178,8 @@ NSString* SPSmartPlaylistChangedNotification = @"SPSmartPlaylistChangedNotificat
 		
 	//NSLog(@"new predicate: %@\n", newPredicate);
 
-	NSString* predicateString = [NSString stringWithFormat:@"(%@) && (kMDItemContentType == 'org.sidmusic.sidtune')", newPredicate.predicateFormat];
+	NSString* supportedAudioTypes = @"(kMDItemContentType == 'org.sidmusic.sidtune' || kMDItemContentTypeTree == 'public.audio' || kMDItemFSName ==[cd] '*.sid' || kMDItemFSName ==[cd] '*.mod' || kMDItemFSName ==[cd] '*.xm' || kMDItemFSName ==[cd] '*.s3m' || kMDItemFSName ==[cd] '*.it' || kMDItemFSName ==[cd] '*.med' || kMDItemFSName ==[cd] '*.okt' || kMDItemFSName ==[cd] '*.mtm' || kMDItemFSName ==[cd] '*.669' || kMDItemFSName ==[cd] '*.stm' || kMDItemFSName ==[cd] '*.far' || kMDItemFSName ==[cd] '*.ult' || kMDItemFSName ==[cd] 'mod.*' || kMDItemFSName ==[cd] 'xm.*' || kMDItemFSName ==[cd] 's3m.*' || kMDItemFSName ==[cd] 'it.*' || kMDItemFSName ==[cd] 'med.*')";
+	NSString* predicateString = [NSString stringWithFormat:@"(%@) && (%@)", newPredicate.predicateFormat, supportedAudioTypes];
 	//predicateString = [predicateString stringByReplacingOccurrencesOfString:@"CONTAINS" withString:@"LIKE"];
 	//NSLog(@"final predicate: %@\n", predicateString);
 	NSPredicate* extendedPredicate = [NSPredicate predicateWithFormat:predicateString];

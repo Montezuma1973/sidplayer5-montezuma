@@ -96,6 +96,11 @@
 						else
 						{
 							NSString* parentFolder = thePath.stringByDeletingLastPathComponent.lastPathComponent;
+							if ([parentFolder caseInsensitiveCompare:@"MS-DOS"] == NSOrderedSame ||
+							    [parentFolder caseInsensitiveCompare:@"Docs"] == NSOrderedSame)
+							{
+								parentFolder = thePath.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.lastPathComponent;
+							}
 							if (parentFolder.length > 0 && ![parentFolder isEqualToString:@"Amiga"] && ![parentFolder isEqualToString:@"Mods"])
 							{
 								modAuthor = parentFolder;
@@ -162,10 +167,42 @@
 }
 
 
+static inline BOOL IsPlayableFile(NSString* file, NSString* path)
+{
+	NSString* ext = file.pathExtension.lowercaseString;
+	NSString* lowerFile = [file lowercaseString];
+	BOOL isModPrefixed = [lowerFile hasPrefix:@"mod."] || [lowerFile hasPrefix:@"xm."] || [lowerFile hasPrefix:@"s3m."] || [lowerFile hasPrefix:@"it."] || [lowerFile hasPrefix:@"med."];
+	return ([ext isEqualToString:@"sid"] || [ext isEqualToString:@"mod"] || isModPrefixed || [SPModPlayer isKnownModExtension:ext] || [SPModPlayer isModFile:path]);
+}
+
+
 // ----------------------------------------------------------------------------
 - (instancetype) initWithMetaDataItem:(NSMetadataItem*)item
 // ----------------------------------------------------------------------------
 {
+	NSString* thePath = [item valueForAttribute:@"kMDItemPath"];
+	if (thePath == nil || thePath.length == 0)
+		return nil;
+
+	BOOL isDir = NO;
+	if ([[NSFileManager defaultManager] fileExistsAtPath:thePath isDirectory:&isDir] && isDir)
+		return nil;
+
+	// For Amiga MOD / Tracker files or files missing Spotlight SID metadata,
+	// delegate to initWithPath: to properly inspect the file and extract title, author,
+	// format, subtunes and playtime.
+	if ([SPModPlayer isModFile:thePath])
+	{
+		return [self initWithPath:thePath isFolder:NO forParent:nil withDefaultSubtune:0];
+	}
+
+	NSString* mdTitle = [item valueForAttribute:@"kMDItemTitle"];
+	NSString* mdComposer = [item valueForAttribute:@"kMDItemComposer"];
+	if (mdTitle == nil || mdComposer == nil)
+	{
+		return [self initWithPath:thePath isFolder:NO forParent:nil withDefaultSubtune:0];
+	}
+
     if (self = [super init]) 
 	{
 		isFolder = NO;
@@ -173,25 +210,16 @@
 		parent = nil;
 		playlistIndex = 0;
 		loopCount = 0;
+		path = thePath;
+		itemType = SP_ITEM_TYPE_C64;
 
-		title = [item valueForAttribute:@"kMDItemTitle"];
-		author = [item valueForAttribute:@"kMDItemComposer"]; 
+		title = mdTitle;
+		author = mdComposer; 
 		releaseInfo = [item valueForAttribute:@"org_sidmusic_Released"]; 
 		defaultSubTune = [[item valueForAttribute:@"org_sidmusic_DefaultSubtune"] integerValue]; 
 		subTuneCount = [[item valueForAttribute:@"org_sidmusic_SubtuneCount"] integerValue]; 
-		path = [item valueForAttribute:@"kMDItemPath"];
 		
-		int playtime = 0;
-		if ([SPModPlayer isModFile:path])
-		{
-			itemType = SP_ITEM_TYPE_AMIGA_MOD;
-			playtime = [SPModPlayer getModLengthForPath:path andSubtune:(int)defaultSubTune];
-		}
-		else
-		{
-			itemType = SP_ITEM_TYPE_C64;
-			playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:path andSubtune:(int)defaultSubTune];
-		}
+		int playtime = [[SongLengthDatabase sharedInstance] getSongLengthByPath:path andSubtune:(int)defaultSubTune];
 		if (playtime <= 0)
 		{
 			playtime = (gPreferences && gPreferences.mDefaultPlayTime > 0) ? gPreferences.mDefaultPlayTime : 180;
@@ -246,13 +274,125 @@
 
 
 // ----------------------------------------------------------------------------
++ (void) addPlayableItemsFromDirectory:(NSString*)dirPath
+                               toArray:(NSMutableArray*)browserItems
+                             seenPaths:(NSMutableSet*)seenPaths
+                              maxDepth:(int)maxDepth
+                          currentDepth:(int)currentDepth
+// ----------------------------------------------------------------------------
+{
+	if (dirPath == nil || dirPath.length == 0 || currentDepth > maxDepth)
+		return;
+
+	NSString* dirName = dirPath.lastPathComponent;
+	if ([dirName caseInsensitiveCompare:@"DOCUMENTS"] == NSOrderedSame ||
+	    [dirName caseInsensitiveCompare:@"Docs"] == NSOrderedSame ||
+	    [dirName hasPrefix:@"."])
+	{
+		return;
+	}
+
+	NSError* error = nil;
+	NSArray* files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dirPath error:&error];
+	if (!files || error)
+		return;
+
+	for (NSString* file in files)
+	{
+		if (file.length == 0 || [file hasPrefix:@"."])
+			continue;
+
+		if ([file caseInsensitiveCompare:@"DOCUMENTS"] == NSOrderedSame ||
+		    [file caseInsensitiveCompare:@"Docs"] == NSOrderedSame)
+			continue;
+
+		if ([file containsString:@"_2SID"] || [file containsString:@"_3SID"])
+			continue;
+
+		NSString* filePath = [dirPath stringByAppendingPathComponent:file];
+		BOOL folder = NO;
+		BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:filePath isDirectory:&folder];
+		if (!exists)
+			continue;
+
+		if (folder)
+		{
+			if (currentDepth < maxDepth)
+			{
+				[self addPlayableItemsFromDirectory:filePath
+				                            toArray:browserItems
+				                          seenPaths:seenPaths
+				                           maxDepth:maxDepth
+				                       currentDepth:currentDepth + 1];
+			}
+		}
+		else
+		{
+			if ([seenPaths containsObject:filePath])
+				continue;
+
+			if (IsPlayableFile(file, filePath))
+			{
+				SPBrowserItem* item = [[SPBrowserItem alloc] initWithPath:filePath isFolder:NO forParent:nil withDefaultSubtune:0];
+				if (item != nil)
+				{
+					[seenPaths addObject:filePath];
+					[browserItems addObject:item];
+				}
+			}
+		}
+	}
+}
+
+
+// ----------------------------------------------------------------------------
 + (void) fillArray:(NSMutableArray*)browserItems withMetaDataQueryResults:(NSArray*)results
 // ----------------------------------------------------------------------------
 {
+	NSMutableSet* seenPaths = [NSMutableSet setWithCapacity:results.count];
 	for (id item in results)
 	{
-		SPBrowserItem* browserItem = [[SPBrowserItem alloc] initWithMetaDataItem:(NSMetadataItem*)item];
-		[browserItems addObject:browserItem];
+		if (![item isKindOfClass:[NSMetadataItem class]])
+			continue;
+
+		NSMetadataItem* mdItem = (NSMetadataItem*)item;
+		NSString* thePath = [mdItem valueForAttribute:@"kMDItemPath"];
+		if (thePath == nil || thePath.length == 0)
+			continue;
+
+		BOOL isDir = NO;
+		if ([[NSFileManager defaultManager] fileExistsAtPath:thePath isDirectory:&isDir] && isDir)
+		{
+			NSString* folderName = thePath.lastPathComponent;
+			if ([folderName caseInsensitiveCompare:@"Amiga"] == NSOrderedSame ||
+			    [folderName caseInsensitiveCompare:@"Mods"] == NSOrderedSame ||
+			    [folderName caseInsensitiveCompare:@"MUSICIANS"] == NSOrderedSame ||
+			    [folderName caseInsensitiveCompare:@"DEMOS"] == NSOrderedSame ||
+			    [folderName caseInsensitiveCompare:@"GAMES"] == NSOrderedSame ||
+			    [folderName caseInsensitiveCompare:@"DOCUMENTS"] == NSOrderedSame ||
+			    [folderName caseInsensitiveCompare:@"Docs"] == NSOrderedSame)
+			{
+				continue;
+			}
+
+			[self addPlayableItemsFromDirectory:thePath
+			                            toArray:browserItems
+			                          seenPaths:seenPaths
+			                           maxDepth:2
+			                       currentDepth:0];
+		}
+		else
+		{
+			if ([seenPaths containsObject:thePath])
+				continue;
+
+			SPBrowserItem* browserItem = [[SPBrowserItem alloc] initWithMetaDataItem:mdItem];
+			if (browserItem != nil)
+			{
+				[seenPaths addObject:thePath];
+				[browserItems addObject:browserItem];
+			}
+		}
 	}
 }
 
