@@ -218,8 +218,8 @@
         CGFloat ctrlH = h - 24.0f;
         
         // 1. Nixie Displays (Left bay - expanded horizontally for full 4-tube + separator display)
-        CGFloat nixieH = MIN(78.0f, ctrlH - 4.0f);
-        CGFloat nixieY = bottomY + (ctrlH - nixieH) * 0.5f;
+        CGFloat nixieH = MIN(78.0f, MAX(20.0f, ctrlH - 4.0f));
+        CGFloat nixieY = bottomY + MAX(0.0f, (ctrlH - nixieH) * 0.5f);
         CGFloat nixieW = 142.0f;
         _timeNixieView.frame = NSMakeRect(18.0f, nixieY, nixieW, nixieH);
         _subtuneNixieView.frame = NSMakeRect(18.0f + nixieW + 8.0f, nixieY, nixieW, nixieH);
@@ -227,7 +227,7 @@
         // Subtune Stepper buttons (◀ and ▶)
         CGFloat btnX = 18.0f + (nixieW * 2.0f) + 12.0f;
         CGFloat btnW = 26.0f;
-        CGFloat btnH = (nixieH - 4.0f) * 0.5f;
+        CGFloat btnH = MAX(10.0f, (nixieH - 4.0f) * 0.5f);
         _nextSubtuneBtn.frame = NSMakeRect(btnX, nixieY + btnH + 4.0f, btnW, btnH);
         _prevSubtuneBtn.frame = NSMakeRect(btnX, nixieY, btnW, btnH);
         
@@ -484,10 +484,10 @@
         [[NSBezierPath bezierPathWithRoundedRect:placardRect xRadius:2.0f yRadius:2.0f] fill];
         
         NSString *headerTitle = @"COMMODORE 64 // TIME & SUBTUNE";
-        NSDictionary *headAttr = @{
-            NSFontAttributeName: [NSFont monospacedSystemFontOfSize:9.5f weight:NSFontWeightHeavy],
-            NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.85f green:0.88f blue:0.95f alpha:0.9f]
-        };
+        NSFont *headFont = [NSFont monospacedSystemFontOfSize:9.5f weight:NSFontWeightHeavy] ?: [NSFont boldSystemFontOfSize:9.5f] ?: [NSFont systemFontOfSize:9.5f];
+        NSMutableDictionary *headAttr = [NSMutableDictionary dictionaryWithCapacity:2];
+        if (headFont) headAttr[NSFontAttributeName] = headFont;
+        headAttr[NSForegroundColorAttributeName] = [NSColor colorWithCalibratedRed:0.85f green:0.88f blue:0.95f alpha:0.9f];
         [headerTitle drawAtPoint:NSMakePoint(placardRect.origin.x + 6.0f, placardRect.origin.y + 5.0f) withAttributes:headAttr];
         
         // Power/Audio LED dot

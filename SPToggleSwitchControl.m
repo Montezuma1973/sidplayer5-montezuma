@@ -183,22 +183,22 @@
     style.alignment = NSTextAlignmentCenter;
     
     // Title
-    NSDictionary *titleAttrs = @{
-        NSFontAttributeName: [NSFont boldSystemFontOfSize:9.5f],
-        NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:0.75f green:0.78f blue:0.85f alpha:1.0f],
-        NSParagraphStyleAttributeName: style
-    };
+    NSFont *titleFont = [NSFont boldSystemFontOfSize:9.5f] ?: [NSFont systemFontOfSize:9.5f];
+    NSMutableDictionary *titleAttrs = [NSMutableDictionary dictionaryWithCapacity:3];
+    if (titleFont) titleAttrs[NSFontAttributeName] = titleFont;
+    titleAttrs[NSForegroundColorAttributeName] = [NSColor colorWithCalibratedRed:0.75f green:0.78f blue:0.85f alpha:1.0f];
+    if (style) titleAttrs[NSParagraphStyleAttributeName] = style;
     NSRect titleRect = NSMakeRect(0, 14.0f, w, 13.0f);
     [_titleText drawInRect:titleRect withAttributes:titleAttrs];
     
     // ON / OFF text
     NSString *statusStr = _isOn ? @"ON" : @"OFF";
     NSColor *statusColor = _isOn ? [self neonColor] : [NSColor colorWithCalibratedRed:0.45f green:0.48f blue:0.55f alpha:1.0f];
-    NSDictionary *statusAttrs = @{
-        NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9.5f weight:NSFontWeightBold],
-        NSForegroundColorAttributeName: statusColor,
-        NSParagraphStyleAttributeName: style
-    };
+    NSFont *statusFont = [NSFont monospacedDigitSystemFontOfSize:9.5f weight:NSFontWeightBold] ?: [NSFont boldSystemFontOfSize:9.5f] ?: [NSFont systemFontOfSize:9.5f];
+    NSMutableDictionary *statusAttrs = [NSMutableDictionary dictionaryWithCapacity:3];
+    if (statusFont) statusAttrs[NSFontAttributeName] = statusFont;
+    if (statusColor) statusAttrs[NSForegroundColorAttributeName] = statusColor;
+    if (style) statusAttrs[NSParagraphStyleAttributeName] = style;
     NSRect statusRect = NSMakeRect(0, 1.0f, w, 12.0f);
     [statusStr drawInRect:statusRect withAttributes:statusAttrs];
 }

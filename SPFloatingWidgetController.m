@@ -119,18 +119,18 @@ static NSString * const kSPFloatingWidgetAlwaysOnTopKey = @"SPFloatingRetroVisua
     
     // 4. Informational text
     NSString *mainText = @"RETRO VISUALIZER DETACHED";
-    NSDictionary *mainAttr = @{
-        NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:11.0f weight:NSFontWeightBold],
-        NSForegroundColorAttributeName: [NSColor labelColor]
-    };
+    NSFont *mainFont = [NSFont monospacedDigitSystemFontOfSize:11.0f weight:NSFontWeightBold] ?: [NSFont boldSystemFontOfSize:11.0f] ?: [NSFont systemFontOfSize:11.0f];
+    NSMutableDictionary *mainAttr = [NSMutableDictionary dictionaryWithCapacity:2];
+    if (mainFont) mainAttr[NSFontAttributeName] = mainFont;
+    mainAttr[NSForegroundColorAttributeName] = [NSColor labelColor];
     NSSize mainSize = [mainText sizeWithAttributes:mainAttr];
     [mainText drawAtPoint:NSMakePoint(centerX - mainSize.width * 0.5f, centerY - 20.0f) withAttributes:mainAttr];
     
     NSString *subText = @"Floating on your desktop";
-    NSDictionary *subAttr = @{
-        NSFontAttributeName: [NSFont systemFontOfSize:10.0f weight:NSFontWeightRegular],
-        NSForegroundColorAttributeName: [NSColor secondaryLabelColor]
-    };
+    NSFont *subFont = [NSFont systemFontOfSize:10.0f weight:NSFontWeightRegular] ?: [NSFont systemFontOfSize:10.0f];
+    NSMutableDictionary *subAttr = [NSMutableDictionary dictionaryWithCapacity:2];
+    if (subFont) subAttr[NSFontAttributeName] = subFont;
+    subAttr[NSForegroundColorAttributeName] = [NSColor secondaryLabelColor];
     NSSize subSize = [subText sizeWithAttributes:subAttr];
     [subText drawAtPoint:NSMakePoint(centerX - subSize.width * 0.5f, centerY - 36.0f) withAttributes:subAttr];
     
