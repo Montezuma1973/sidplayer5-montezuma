@@ -1033,26 +1033,30 @@ NSDate* fillStart = nil;
 	NSString *predicateFormat = nil;
     currentSearchPredicate = nil;
 
+	NSString* supportedFilesTypes = @"(kMDItemContentType == 'org.sidmusic.sidtune' || kMDItemContentTypeTree == 'public.audio' || kMDItemFSName ==[cd] '*.sid' || kMDItemFSName ==[cd] '*.mod' || kMDItemFSName ==[cd] '*.xm' || kMDItemFSName ==[cd] '*.s3m' || kMDItemFSName ==[cd] '*.it' || kMDItemFSName ==[cd] '*.med' || kMDItemFSName ==[cd] '*.okt' || kMDItemFSName ==[cd] '*.mtm' || kMDItemFSName ==[cd] '*.669' || kMDItemFSName ==[cd] '*.stm' || kMDItemFSName ==[cd] '*.far' || kMDItemFSName ==[cd] '*.ult' || kMDItemFSName ==[cd] 'mod.*' || kMDItemFSName ==[cd] 'xm.*' || kMDItemFSName ==[cd] 's3m.*' || kMDItemFSName ==[cd] 'it.*' || kMDItemFSName ==[cd] 'med.*' || kMDItemContentTypeTree == 'public.folder')";
+
+	NSString* supportedAudioOnly = @"(kMDItemContentType == 'org.sidmusic.sidtune' || kMDItemContentTypeTree == 'public.audio' || kMDItemFSName ==[cd] '*.sid' || kMDItemFSName ==[cd] '*.mod' || kMDItemFSName ==[cd] '*.xm' || kMDItemFSName ==[cd] '*.s3m' || kMDItemFSName ==[cd] '*.it' || kMDItemFSName ==[cd] '*.med' || kMDItemFSName ==[cd] '*.okt' || kMDItemFSName ==[cd] '*.mtm' || kMDItemFSName ==[cd] '*.669' || kMDItemFSName ==[cd] '*.stm' || kMDItemFSName ==[cd] '*.far' || kMDItemFSName ==[cd] '*.ult' || kMDItemFSName ==[cd] 'mod.*' || kMDItemFSName ==[cd] 'xm.*' || kMDItemFSName ==[cd] 's3m.*' || kMDItemFSName ==[cd] 'it.*' || kMDItemFSName ==[cd] 'med.*')";
+
 	switch (gPreferences.mSearchType)
 	{
 		case SEARCH_ALL:
-			predicateFormat = @"(kMDItemContentType == 'org.sidmusic.sidtune') && ((kMDItemTitle LIKE[cd] %@) || (kMDItemComposer LIKE[cd] %@) || (org_sidmusic_Released LIKE[cd] %@) || (kMDItemFSName LIKE[cd] %@))";
-			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString, likeSearchString, likeSearchString, likeSearchString, likeSearchString];
+			predicateFormat = [NSString stringWithFormat:@"(%@) && ((kMDItemTitle LIKE[cd] %%@) || (kMDItemComposer LIKE[cd] %%@) || (org_sidmusic_Released LIKE[cd] %%@) || (kMDItemFSName LIKE[cd] %%@))", supportedFilesTypes];
+			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString, likeSearchString, likeSearchString, likeSearchString];
 			break;
 		case SEARCH_TITLE:
-			predicateFormat = @"(kMDItemContentType == 'org.sidmusic.sidtune') && (kMDItemTitle LIKE[cd] %@)";
-			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString];
+			predicateFormat = [NSString stringWithFormat:@"(%@) && ((kMDItemTitle LIKE[cd] %%@) || (kMDItemFSName LIKE[cd] %%@))", supportedAudioOnly];
+			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString, likeSearchString];
 			break;
 		case SEARCH_AUTHOR:
-			predicateFormat = @"(kMDItemContentType == 'org.sidmusic.sidtune') && (kMDItemComposer LIKE[cd] %@)";
-			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString];
+			predicateFormat = [NSString stringWithFormat:@"(%@) && ((kMDItemComposer LIKE[cd] %%@) || (kMDItemContentTypeTree == 'public.folder' && kMDItemFSName LIKE[cd] %%@))", supportedFilesTypes];
+			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString, likeSearchString];
 			break;
 		case SEARCH_RELEASED:
-			predicateFormat = @"(kMDItemContentType == 'org.sidmusic.sidtune') && (org_sidmusic_Released LIKE[cd] %@)";
-			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString];
+			predicateFormat = [NSString stringWithFormat:@"(%@) && ((org_sidmusic_Released LIKE[cd] %%@) || (kMDItemFSName LIKE[cd] %%@))", supportedAudioOnly];
+			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString, likeSearchString];
 			break;
 		case SEARCH_FILENAME:
-			predicateFormat = @"(kMDItemContentType == 'org.sidmusic.sidtune') && (kMDItemFSName LIKE[cd] %@)";
+			predicateFormat = [NSString stringWithFormat:@"(%@) && (kMDItemFSName LIKE[cd] %%@)", supportedAudioOnly];
 			currentSearchPredicate = [NSPredicate predicateWithFormat:predicateFormat, likeSearchString];
 			break;
 	}
